@@ -6,7 +6,6 @@ remote.Parent = ReplicatedStorage
 
 local Defs = require(script.Parent.Definitions)
 
-
 Defs.bool1.OnServerEvent:Connect(function(player, data)
 	--print(data)
 end)
@@ -21,6 +20,10 @@ end)
 
 Defs.bool4.BoolTest.listen(function(data, player)
 
+end)
+
+Defs.bool5:Connect(function(player, data)
+	
 end)
 
 Defs.entities1.OnServerEvent:Connect(function(player, data)
@@ -39,6 +42,10 @@ Defs.entities4.EntitiesTest.listen(function(data, player)
 
 end)
 
+Defs.entities5:Connect(function(player, data)
+	
+end)
+
 Defs.strings1.OnServerEvent:Connect(function(player, data)
 
 end)
@@ -53,6 +60,10 @@ end)
 
 Defs.strings4.StringsTest.listen(function(data, player)
 
+end)
+
+Defs.strings5:Connect(function(player, data)
+	
 end)
 
 Defs.numbers1.OnServerEvent:Connect(function(player, data)
@@ -71,6 +82,10 @@ Defs.numbers4.NumbersTest.listen(function(data, player)
 
 end)
 
+Defs.numbers5:Connect(function(player, data)
+	
+end)
+
 Defs.dict1.OnServerEvent:Connect(function(player, data)
 
 end)
@@ -87,4 +102,9 @@ Defs.dict4.DictTest.listen(function(data, player)
 
 end)
 
+Defs.dict5:Connect(function(player, data)
+	
+end)
+
 return {}
+

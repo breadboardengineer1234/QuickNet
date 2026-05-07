@@ -1,0 +1,809 @@
+--!optimize 2
+
+--[QuickNet] v0.1.0
+--author: u5eful
+
+--services--
+local RunService = game:GetService("RunService")
+local Players = game:GetService("Players")
+
+--dependencies--
+local DataTypes = require(script.DataTypes)
+local Enums = require(script.Enums)
+local Serialize = require(script.Serialize)
+local Parser = require(script.Parser)
+local Types = require(script.Types)
+
+--config--
+local SOURCE = "[QuickNet]"
+local DEBUG_MODE = true --set to false for production
+local RATE_LIMIT = {Max = 120, Time = 1}
+local MAX_CALLS_PER_FRAME = 100000 --decrease this
+local INVOKE_TIMEOUT = 10
+local MAX_INVOKE_TIMEOUT = 60
+local MAX_PAYLOAD_SIZE = 200000000000 --decrease this
+local MAX_ARGS = 30
+local ERROR_MSGS = {
+	MaxArgs = "Number of arguments exceeds max",
+	InvalidInternalArg1 = "invalid internal argument 1",
+	InvalidInternalArg2 = "invalid internal argument 2",
+}
+local MAX_REQ_ID = 65536
+local CLIENT_TEMP_BUFF_SIZE = 20000000
+local SERVER_TEMP_BUFF_SIZE = 2000000
+local REMOTE_EVENT = 0
+local REMOTE_FUNCTION = 1
+local INVOKE_FAIL_ID = 0
+local TBL_POOL_SIZE = 200
+
+--types--
+type Signal<T...> = Types.Signal<T...>
+export type NetworkEvent<A... = ()> = Types.NetworkEvent<A...>
+export type NetworkFunction<A... = (), B... = ()> = Types.NetworkFunction<A..., B...>
+type NetworkInfo<A..., B...> = Types.NetworkInfo<A..., B...>
+export type QuickNetConnection = Types.QuickNetConnection
+type SchemaArg = Types.SchemaArg
+type Queue = Types.Queue
+
+--variables--
+local isServer = RunService:IsServer()
+local getSchema = Parser.getSchema
+local Net = {}
+local NetworkObject = {}
+local encodeData = Serialize.encode
+local decodeData = Serialize.decode
+local eventsInfo: {[number]: NetworkInfo<(), ()>} = {}
+local namesRegistered: {[string]: boolean} = {}
+local rateLimitInfo: {[Player]: {[string]: {Timestamp: number, NumSends: number}}} = {}
+local reqThreads: {[number]: thread} = {}
+local asyncThreadsPool: {thread} = {}
+local timeoutTasks: {[number]: thread} = {}
+local globalReqId: number = -1
+local globalEventId: number = 0
+local buffersPool: {buffer} = {}
+local buffersCache: {[number]: {buffer}} = {}
+local buffersCacheSize = 0
+local clientQueue: Queue? 
+if not isServer then
+	clientQueue = {
+		QueueSize = 0,
+		ByteSize = 0,
+		TempBuffer = buffer.create(CLIENT_TEMP_BUFF_SIZE),
+		Instances = {},
+	}
+end
+local serverQueue: {[Player]: Queue} = {}
+local internalRemote: RemoteEvent
+local maxPayloadSize = MAX_PAYLOAD_SIZE
+
+local tablePool = table.create(TBL_POOL_SIZE)
+
+--private--
+@native local function getTable(): {any}
+	local poolIdx = #tablePool
+	local tbl = tablePool[poolIdx]
+	tablePool[poolIdx] = nil
+	return tbl or {}
+end
+
+@native local function recycleTable(tbl: {any})
+	local poolIdx = #tablePool
+	if poolIdx > TBL_POOL_SIZE then
+		return
+	end
+	table.clear(tbl)
+	tablePool[poolIdx + 1] = tbl
+end
+
+local function errorMsg(msg: string)
+	error(SOURCE.." "..msg)
+end
+
+local function warnMsg(msg: string, bypassDebugMode: boolean?)
+	if not DEBUG_MODE and not bypassDebugMode then
+		return
+	end
+	warn(SOURCE.." "..msg)
+end
+
+local function getRemote(name: string): RemoteEvent
+	local remote
+	if isServer then
+		remote = Instance.new("RemoteEvent")
+		remote.Name = name
+		remote.Parent = script
+	else
+		remote = script:WaitForChild(name)
+	end
+	return remote
+end
+
+local function getBuffer(): buffer
+	local poolIdx = #buffersPool
+	local buff = buffersPool[poolIdx] or buffer.create(SERVER_TEMP_BUFF_SIZE)
+	buffersPool[poolIdx] = nil
+	return buff
+end
+
+local function recycleBuffer(buff: buffer)
+	local poolIdx = #buffersPool
+	if poolIdx >= 30 or not buff then return end 
+	buffersPool[#buffersPool + 1] = buff
+end
+
+@native local function cacheBuffer(buff: buffer, size: number)
+	if buffersCacheSize > 9 then
+		local k = next(buffersCache)
+		buffersCache[k] = nil
+	else
+		buffersCacheSize += 1
+	end
+	buffersCache[size] = buff
+end
+
+@native local function getBufferFromCache(size: number)
+	local buff = buffersCache[size]
+	if buff then
+		buffersCache[size] = nil
+		buffersCacheSize -= 1
+	end
+	return buff
+end
+
+@native local function getBatchedBuffer(queue: Queue): buffer
+	local bytes = queue.ByteSize
+	local size = bytes + 2
+	local buff = getBufferFromCache(size) or buffer.create(size)
+	buffer.writeu16(buff, 0, queue.QueueSize)
+	buffer.copy(buff, 2, queue.TempBuffer, 0, bytes)
+	cacheBuffer(buff, size)
+	return buff
+end
+
+@native local function flushQueue(queue: Queue, clearInst: boolean)
+	queue.QueueSize = 0
+	queue.ByteSize = 0
+	if clearInst then
+		table.clear(queue.Instances)
+	end
+end
+
+@native local function processQueueClient()
+	if clientQueue.QueueSize < 1 then
+		return
+	end
+	local buff = getBatchedBuffer(clientQueue)
+	local inst = clientQueue.Instances
+	local hasInst = #inst > 0
+	if hasInst then
+		internalRemote:FireServer(buff, inst)
+	else
+		internalRemote:FireServer(buff)
+	end
+	flushQueue(clientQueue, hasInst)		
+end
+
+@native local function processQueueServer()
+	for player, queue in serverQueue do
+		if not queue or queue.QueueSize < 1 then
+			continue
+		end
+		local buff = getBatchedBuffer(queue)
+		local inst = queue.Instances
+		local hasInst = #inst > 0
+		if hasInst then
+			internalRemote:FireClient(player, buff, inst)
+		else
+			internalRemote:FireClient(player, buff)
+		end
+		flushQueue(queue, hasInst)
+	end
+end
+
+@native local function queueEvent(queue: Queue, schema: {SchemaArg?}, args: {any}, actionId: number, reqId: number,
+	networkType: number)
+	if not queue then return end
+	local offset = queue.ByteSize
+	local buff = queue.TempBuffer
+	buffer.writeu8(buff, offset, actionId)
+	local bytes = 1
+	if networkType == REMOTE_FUNCTION then
+		buffer.writeu16(buff, offset + bytes, reqId)
+		bytes += 2
+	end
+	local inst = queue.Instances
+	if schema then
+		for i, arg in schema do
+			local value = args[i]
+			local encode = encodeData[arg] or encodeData[arg[1]] 
+			:: ((buffer, number, SchemaArg, any, {Instance}?) -> number)?
+			bytes += encode(buff, offset + bytes, arg, value, inst)
+		end
+	end
+	queue.QueueSize += 1
+	queue.ByteSize += bytes
+end
+
+local function getEventId(name: string): number?
+	if isServer then
+		globalEventId += 1
+		if globalEventId > 255 then
+			errorMsg("Max number of network events is 255")
+			return
+		end
+		internalRemote:SetAttribute(name, globalEventId)
+		return globalEventId
+	end
+	
+	local id = internalRemote:GetAttribute(name)
+	if not id then
+		internalRemote:GetAttributeChangedSignal(name):Wait()
+		id = internalRemote:GetAttribute(name)
+	end
+	if not id then
+		errorMsg("unable to get action id for "..name)
+	end
+	return id
+end
+
+@native local function validateArgs(schema: {SchemaArg}?, args: {any}): boolean
+	if not schema then
+		return true
+	end
+	if #args > MAX_ARGS then
+		warnMsg(ERROR_MSGS.MaxArgs)
+		return false
+	end
+	return true
+end
+
+@native local function checkRateLimit(player: Player, name: string, rateLimitConfig: {Max: number, Time: number})
+	: boolean
+	local playerInfo = rateLimitInfo[player]
+	if not playerInfo then
+		return false
+	end
+	
+	local info = playerInfo[name]
+	local now = os.clock()
+	if not info then
+		info = {Timestamp = now, NumSends = 0}
+		playerInfo[name] = info
+	end
+	
+	local onCooldown = now - info.Timestamp < rateLimitConfig.Time
+	local exceeded = info.NumSends >= rateLimitConfig.Max
+
+	if exceeded and onCooldown then
+		warnMsg(player.Name.."'s rate limit exceeded for "..name)
+		return true
+	end
+	
+	if onCooldown then
+		info.NumSends += 1
+	else
+		info.Timestamp = now
+		info.NumSends = 1
+	end
+	return false
+end
+
+@native local function getArgs(buff: buffer, offset: number, schema: {SchemaArg}, inst: {Instance}?): ({any}, number)
+	local ptr = offset
+	local args = {}
+
+	for i, arg in schema do
+		local decode = decodeData[arg] or decodeData[arg[1]] 
+		:: (buffer, number, SchemaArg, {Instance}?) -> (any, number)
+		local value, bytes = decode(buff, ptr, arg, inst)
+		ptr += bytes
+		args[i] = value
+	end
+	return args, ptr - offset
+end
+
+@native local function fastUnpack(tbl: {any}, len: number): ...any
+	if len < 2 then
+		return tbl[1]
+		
+	elseif len < 5 then
+		return tbl[1], tbl[2], tbl[3], tbl[4]
+		
+	elseif len < 9 then
+		return tbl[1], tbl[2], tbl[3], tbl[4], tbl[5], tbl[6], tbl[7], tbl[8]
+	else
+		return table.unpack(tbl, 1, len)
+	end
+end
+
+@native local function getInvokeResults(...): (boolean, {any})
+	local success = select(1, ...)	
+	if not success then
+		local err = select(2, ...)
+		return success, err
+	end
+	
+	local args = {select(2, ...)}
+	return success, args
+end
+
+@native local function runCallback(callback, thread, responseSchema, actionId, reqId, ...)
+	if reqId then
+		local player = select(1, ...)
+		local success, result = getInvokeResults(pcall(callback, ...))
+		if success then
+			queueEvent(serverQueue[player], responseSchema, result, actionId, reqId, REMOTE_FUNCTION)
+		else
+			warnMsg(result, true)
+			queueEvent(serverQueue[player], nil, nil, INVOKE_FAIL_ID, reqId, REMOTE_FUNCTION)
+		end
+	else
+		local success, err = pcall(callback, ...)
+		if not success then warnMsg(err, true) end
+	end
+	asyncThreadsPool[#asyncThreadsPool + 1] = thread
+end
+
+@native local function yieldThread()
+	while true do
+		runCallback(coroutine.yield())
+	end
+end
+
+@native local function getThread(): thread
+	local numThreads = #asyncThreadsPool
+	local thread
+	if numThreads > 0 then
+		thread = asyncThreadsPool[numThreads]
+		asyncThreadsPool[numThreads] = nil
+	else
+		thread = coroutine.create(yieldThread)
+		coroutine.resume(thread)
+	end
+	return thread
+end
+
+local function addWait(waitThreads: {thread}): thread
+	waitThreads[#waitThreads + 1] = coroutine.running()
+	return coroutine.yield()
+end
+
+@native local function resolveWaits(waitThreads: {thread})
+	for _, thread in waitThreads do
+		if coroutine.status(thread) ~= "suspended" then
+			continue
+		end
+		coroutine.resume(thread)
+	end
+	recycleTable(waitThreads)
+end
+
+@native local function remoteListenerServer(player: Player, buff: buffer, inst: {Instance}?)
+	if type(buff) ~= "buffer" then
+		warnMsg(ERROR_MSGS.InvalidInternalArg1)
+		return
+	end
+	local buffLen = buffer.len(buff)
+	if buffLen > maxPayloadSize then
+		warnMsg(player.Name.." exceeded max packet size, dropping calls")
+		return
+	end
+
+	if inst then
+		if type(inst) ~= "table" then
+			warnMsg(ERROR_MSGS.InvalidInternalArg2)
+			return
+		end
+		inst[#inst + 1] = 1 --instance pointer
+	end
+	local numCalls = buffer.readu16(buff, 0)
+	local offset = 2
+
+	for i = 1, numCalls do
+		if i > MAX_CALLS_PER_FRAME then
+			warnMsg("max calls per frame exceeded for "..player.Name..
+				", further calls for this frame will be dropped")
+			return
+		end
+		local id = buffer.readu8(buff, offset)
+		offset += 1
+		local info: NetworkInfo<(), ()> = eventsInfo[id]
+		if not info then
+			warnMsg("unknown event id "..id..", dropping calls")
+			return
+		end
+		local waitThreads = info.WaitThreads
+		if #waitThreads > 0 then
+			info.WaitThreads = getTable()
+			resolveWaits(waitThreads)
+		end
+		
+		local networkType = info.NetworkType
+		local isRemoteFunction = networkType == REMOTE_FUNCTION
+		local schema = info.SendSchema
+		local numArgs = #schema
+		local name = info.Name
+		local reqId = 0
+		if isRemoteFunction then
+			reqId = buffer.readu16(buff, offset)				
+			offset += 2
+		end
+		local args, bytesRead = getArgs(buff, offset, schema, inst)
+		offset += bytesRead
+		local valid = validateArgs(schema, args)	
+		local rateLimited = checkRateLimit(player, name, info.RateLimit)
+		if not valid or rateLimited then
+			if isRemoteFunction then
+				queueEvent(serverQueue[player], nil, nil, INVOKE_FAIL_ID, reqId, networkType)
+			end
+			continue
+		end
+
+		if isRemoteFunction then
+			local object = info.Object
+			local isAsync = object.OnServerInvokeAsync
+			local callback = object.OnServerInvoke or isAsync
+			local responseSchema = info.ResponseSchema
+			local numResults = #responseSchema
+			if isAsync then
+				local thread = getThread()
+				coroutine.resume(thread, callback, thread, responseSchema, id, reqId,
+					player, fastUnpack(args, numArgs))
+				continue
+			end
+
+			local success, result = getInvokeResults(pcall(callback, player, fastUnpack(args, numArgs)))
+			if not success then
+				warnMsg(result, true)
+				queueEvent(serverQueue[player], nil, nil, INVOKE_FAIL_ID, reqId, networkType)
+			else
+				queueEvent(serverQueue[player], responseSchema, result, id, reqId, networkType)
+			end
+			continue
+		end
+
+		for _, callback in info.Callbacks do
+			local success, err = pcall(callback, player, fastUnpack(args, numArgs))
+			if not success then warnMsg(err, true) end
+		end
+
+		for _, callback in info.AsyncCallbacks do
+			local thread = getThread()
+			coroutine.resume(thread, callback, thread, nil, nil, nil, player, fastUnpack(args, numArgs))
+		end
+	end
+end
+
+@native local function remoteListenerServerPcall(player: Player, buff: buffer, inst: {Instance?})
+	local success, err = pcall(remoteListenerServer, player, buff, inst)
+	if not success then
+		warnMsg(err)
+	end
+end
+
+@native local function resumeInvokeThread(reqId: number, cancelTask: boolean?, ...)
+	local cor = reqThreads[reqId]
+	reqThreads[reqId] = nil
+	if cor and coroutine.status(cor) ~= "dead" then
+		coroutine.resume(cor, ...)
+	end
+	local timeoutTask = timeoutTasks[reqId]
+	timeoutTasks[reqId] = nil
+	if timeoutTask and cancelTask then
+		task.cancel(timeoutTask)
+	end
+end
+
+@native local function remoteListenerClient(buff: buffer, inst: {Instance}?)
+	if inst then
+		inst[#inst + 1] = 1
+	end
+	local numCalls = buffer.readu16(buff, 0)
+	local offset = 2
+	
+	for i = 1, numCalls do
+		local id = buffer.readu8(buff, offset)
+		offset += 1
+		
+		local reqId
+		if id == INVOKE_FAIL_ID then
+			reqId = buffer.readu16(buff, offset)			
+			offset += 2
+			resumeInvokeThread(reqId, true, nil)
+			continue
+		end
+		
+		local info: NetworkInfo<(), ()> = eventsInfo[id]
+		if not info then
+			warnMsg("unknown event id "..id..", dropping calls")
+			return
+		end
+		
+		local waitThreads = info.WaitThreads
+		if #waitThreads > 0 then
+			info.WaitThreads = getTable()
+			resolveWaits(waitThreads)
+		end
+		local networkType = info.NetworkType
+		local isRemoteFunction = networkType == REMOTE_FUNCTION
+		local schema = networkType == REMOTE_FUNCTION and info.ResponseSchema or info.SendSchema
+		local numArgs = #schema
+		
+		if isRemoteFunction then
+			reqId = buffer.readu16(buff, offset)		
+			offset += 2
+		end
+		
+		local args, bytesRead = getArgs(buff, offset, schema, inst)
+		offset += bytesRead
+		if isRemoteFunction then
+			resumeInvokeThread(reqId, true, fastUnpack(args, numArgs))
+			continue
+		end
+
+		for _, callback in info.Callbacks do
+			local success, err = pcall(callback, fastUnpack(args, numArgs))
+			if not success then warnMsg(err, true) end
+		end	
+
+		for _, callback in info.AsyncCallbacks do
+			local thread = getThread()
+			coroutine.resume(thread, callback, thread, nil, nil, nil, fastUnpack(args, numArgs))
+		end
+	end
+end
+
+@native local function remoteListenerClientPcall(buff: buffer, inst: {Instance?})
+	local success, err = pcall(remoteListenerClient, buff, inst)
+	if not success then
+		warnMsg(err)
+	end
+end
+
+local function getNetworkConnection(callbacks: {[QuickNetConnection]: (...any) -> (...any)}, 
+	callback: (...any) -> (...any)): QuickNetConnection
+	local networkConn = {} :: QuickNetConnection
+	networkConn.Connected = true
+
+	function networkConn:Disconnect()
+		self.Connected = false
+		callbacks[self] = nil
+	end
+
+	function networkConn:Destroy() --janitor compatibility
+		self.Connected = false
+		callbacks[self] = nil
+	end
+	callbacks[networkConn] = callback
+	return networkConn
+end
+
+local function createObjServer<A..., B...>(info: NetworkInfo<A..., B...>): NetworkEvent<A...>
+	local Object = {}
+	Object.OnServerEvent = {}
+
+	local callbacks = info.Callbacks
+	local asyncCallbacks = info.AsyncCallbacks
+	
+	function Object:SetRateLimit(max: number, timeWindow: number)
+		info.RateLimit.Max = max
+		info.RateLimit.Time = timeWindow
+		return Object
+	end
+	
+	function Object:Response(...: B...): NetworkFunction<A..., B...>
+		Object.OnServerInvoke = nil
+		Object.OnServerInvokeAsync = nil
+		info.ResponseSchema = getSchema(...)
+		info.NetworkType = REMOTE_FUNCTION
+		
+		function Object:SetResponseTimeout(val: number): NetworkFunction<A..., B...>
+			info.ResponseTimeout = val
+			return Object
+		end	
+		return Object
+	end
+	
+	function Object.OnServerEvent:Connect(callback: (player: Player, A...) -> ()): QuickNetConnection
+		return getNetworkConnection(callbacks, callback)
+	end
+	
+	function Object.OnServerEvent:ConnectAsync(callback: (player: Player, A...) -> ()): QuickNetConnection
+		return getNetworkConnection(asyncCallbacks, callback)
+	end
+	
+	function Object.OnServerEvent:Wait()
+		return addWait(info.WaitThreads)
+	end
+	
+	local name = info.Name	
+	local schema = info.SendSchema
+	local actionId = info.Id
+	local networkType = info.NetworkType
+	
+	@native function Object:FireClient(player: Player, ...: A...)
+		queueEvent(serverQueue[player], schema, {...}, actionId, 0, networkType)
+	end
+	
+	function Object:FireClients(players: {Player}, ...: A...)
+		for _, player in players do
+			queueEvent(serverQueue[player], schema, {...}, actionId, 0, networkType)
+		end
+	end
+
+	@native function Object:FireAllClients(...: A...)
+		for _, player in Players:GetPlayers() do
+			queueEvent(serverQueue[player], schema, {...}, actionId, 0, networkType)
+		end
+	end
+
+	function Object:FireAllExcept(excludePlayer: Player, ...: A...)
+		for _, player in Players:GetPlayers() do
+			if player == excludePlayer then continue end 
+			queueEvent(serverQueue[player], schema, {...}, actionId, 0, networkType)
+		end
+	end
+
+	return Object
+end
+
+local function timeout(reqId: number, seconds: number)
+	resumeInvokeThread(reqId)
+	warnMsg("Response "..reqId.." timed out after "..seconds.."s", true)
+end
+
+local function createObjClient<A..., B...>(info: NetworkInfo<A..., B...>): NetworkEvent<A...>
+	local Object = {}
+	Object.OnClientEvent = {}
+	
+	function Object:SetRateLimit(max: number, timeWindow: number)
+		info.RateLimit.Max = max
+		info.RateLimit.Time = timeWindow
+		return Object
+	end
+	
+	local name = info.Name
+	local actionId = info.Id
+	local sendSchema = info.SendSchema
+	local callbacks = info.Callbacks
+	local asyncCallbacks = info.AsyncCallbacks
+	local networkType = info.NetworkType
+	
+	function Object:Response(...: B...): NetworkFunction<A..., B...>
+		info.ResponseSchema = getSchema(...)
+		info.NetworkType = REMOTE_FUNCTION
+		
+		@native function Object:InvokeServer(...: A...): B...
+			globalReqId = (globalReqId + 1) % MAX_REQ_ID
+			local reqId = globalReqId
+			resumeInvokeThread(reqId, true, nil)
+
+			local seconds = info.ResponseTimeout
+			local someTask = task.delay(seconds, timeout, reqId, seconds)
+			local cor = coroutine.running()
+			reqThreads[reqId] = cor
+			timeoutTasks[reqId] = someTask
+			queueEvent(clientQueue, sendSchema, {...}, actionId, reqId, REMOTE_FUNCTION)
+			return coroutine.yield()
+		end
+		
+		function Object:SetResponseTimeout(val: number): NetworkFunction<A..., B...>
+			if val > MAX_INVOKE_TIMEOUT or val < 0 then
+				warnMsg("Response timeout must be between 0 and "..MAX_INVOKE_TIMEOUT)
+				return
+			end
+			info.ResponseTimeout = val
+			return Object
+		end		
+		return Object
+	end
+	
+	function Object.OnClientEvent:Connect(callback: (A...) -> ()): QuickNetConnection	
+		return getNetworkConnection(callbacks, callback)
+	end
+	
+	function Object.OnClientEvent:ConnectAsync(callback: (A...) -> ()): QuickNetConnection	
+		return getNetworkConnection(asyncCallbacks, callback)
+	end
+	
+	function Object.OnClientEvent:Wait()
+		return addWait(info.WaitThreads)
+	end
+
+	@native function Object:FireServer(...: A...)
+		queueEvent(clientQueue, sendSchema, {...}, actionId, 0, networkType)
+	end
+	return Object
+end
+
+local function createNetworkObject<A..., B...>(info: NetworkInfo<A..., B...>): NetworkEvent<A...>
+	if isServer then
+		return createObjServer(info)
+	else
+		return createObjClient(info)
+	end
+end
+
+local function start()
+	internalRemote = getRemote("QuickNetRemote")
+	if isServer then
+		local function initPlayer(player: Player)
+			serverQueue[player] = {
+				QueueSize = 0, 
+				ByteSize = 0, 
+				TempBuffer = getBuffer(),
+				Instances = {},
+			}
+			rateLimitInfo[player] = {}
+		end
+
+		for _, player in Players:GetPlayers() do
+			task.spawn(initPlayer, player)
+		end
+		Players.PlayerAdded:Connect(initPlayer)
+
+		Players.PlayerRemoving:Connect(function(player)
+			local queue = serverQueue[player]
+			recycleBuffer(queue.TempBuffer)
+			serverQueue[player] = nil
+			rateLimitInfo[player] = nil
+		end)
+		
+		RunService.PostSimulation:Connect(processQueueServer)
+		internalRemote.OnServerEvent:Connect(remoteListenerServerPcall)
+	else
+		RunService.PostSimulation:Connect(processQueueClient)
+		internalRemote.OnClientEvent:Connect(remoteListenerClientPcall)
+	end
+end
+
+--public--
+Net.Data = DataTypes
+local enumItems = Serialize.enumItems
+local enumItemsByEnum = Serialize.enumItemsByEnum
+
+function Net:setEnumItems(enums: {EnumItem})
+	local idx = 0
+	table.clear(enumItems)
+	table.clear(enumItemsByEnum)
+	
+	for _, enum in enums do
+		idx += 1
+		enumItems[idx] = enum
+		enumItemsByEnum[enum] = idx
+	end
+end
+
+function Net:setMaxPayloadSize(size: number)
+	maxPayloadSize = size
+end
+
+function Net:register<A..., B...>(name: string, ...: A...): NetworkEvent<A...>
+	if namesRegistered[name] then
+		errorMsg(name.." already exists (names must be unique)")
+		return
+	end
+	namesRegistered[name] = true
+	local info = {} :: NetworkInfo<A..., B...>
+	info.Name = name
+	local id = getEventId(name)
+	info.Id = id	
+	info.NetworkType = REMOTE_EVENT
+	info.RateLimit = {Max = RATE_LIMIT.Max, Time = RATE_LIMIT.Time}
+	info.SendSchema = getSchema(...)
+	info.Callbacks = {}
+	info.AsyncCallbacks = {}
+	info.WaitThreads = {}
+	info.ResponseTimeout = INVOKE_TIMEOUT
+	local object = createNetworkObject(info)
+	info.Object = object
+	eventsInfo[id] = info
+	return object
+end
+
+--start module
+start()
+	
+export type QuickNet = typeof(Net)
+
+return Net

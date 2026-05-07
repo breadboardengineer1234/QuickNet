@@ -1,2 +1,2 @@
 # QuickNet
-Highly optimized networking library for Roblox
+Highly optimized networking solution for Roblox

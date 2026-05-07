@@ -1,3 +1,4 @@
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
 local Stats = game:GetService("Stats")
 local Defs = require(script.Parent.Definitions)
@@ -7,6 +8,7 @@ local methods = {
 	Packet = "Fire",
 	RemoteEvent = "FireServer",
 	ByteNet = "send",
+	Jolt = "Fire",
 }
 
 local events = {
@@ -40,8 +42,18 @@ local events = {
 		Strings = Defs.strings4.StringsTest,
 		Numbers = Defs.numbers4.NumbersTest,
 		Dict = Defs.dict4.DictTest,
-	}
+	},
+	
+	Jolt = {
+		Booleans = Defs.bool5,
+		Entities = Defs.entities5,
+		Strings = Defs.strings5,
+		Numbers = Defs.numbers5,
+		Dict = Defs.dict5,
+	},
+	
 }
+
 
 local function getEntitiesData()
 	local array = {}
@@ -130,3 +142,7 @@ end
 --dont use deltaTime it doesnt show below 15 fps
 
 return {start = startTest}
+
+
+
+

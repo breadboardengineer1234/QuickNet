@@ -675,6 +675,7 @@ buildByteToBools()
 		array[bitPtr + 5] = bits[6]
 		array[bitPtr + 6] = bits[7]
 		array[bitPtr + 7] = bits[8]
+		
 		bitPtr += 8
 	end
 	
@@ -1126,7 +1127,7 @@ end
 	: ({any}, number)
 	local len = readu16(buff, offset)
 	local ptr = offset + 2
-	local array = {}
+	local array = table.create(len)
 
 	for i = 1, len do
 		local dataType = readu8(buff, ptr)
@@ -1269,7 +1270,7 @@ local dictTempCache: {[number]: {[any]: any}} = {}
 	local template = dictTempCache[dictId]
 	local dict
 	if template then
-		dict = template
+		dict = table.clone(template)
 		table.clear(dict)
 	else
 		dict = {}
@@ -1314,7 +1315,15 @@ end
 	: ({[any]: any}, number)
 	local len = buffer.readu16(buff, offset)
 	local ptr = offset + 2
-	local dict = {}
+	local dictId = schema[2]
+	local template = dictTempCache[dictId]
+	local dict
+	if template then
+		dict = table.clone(template)
+		table.clear(dict)
+	else
+		dict = {}
+	end
 
 	for i = 1, len do
 		local keyType = readu8(buff, ptr)
@@ -1331,6 +1340,9 @@ end
 		local val, b = decodeVal(buff, ptr, schema, inst)
 		ptr += b
 		dict[key] = val
+	end
+	if not template then
+		dictTempCache[dictId] = table.clone(dict)
 	end
 	return dict, ptr - offset
 end

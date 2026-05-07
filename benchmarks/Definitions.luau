@@ -1,7 +1,10 @@
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local RunService = game:GetService("RunService")
 local Net = require(ReplicatedStorage.QuickNet)
 local Packet = require(ReplicatedStorage.Packet)
 local ByteNet = require(ReplicatedStorage.ByteNet)
+local Jolt = require(ReplicatedStorage.Jolt)
+local env = RunService:IsServer() and "Server" or "Client"
 local remote = ReplicatedStorage:WaitForChild("BenchmarkRemote")
 
 local module = {
@@ -15,6 +18,7 @@ local module = {
 			})
 		}
 	end),
+	bool5 = Jolt[env]("BoolTest"),
 
 	entities1 = Net:register("EntitiesTest",
 		{
@@ -56,6 +60,7 @@ local module = {
 			})
 		}
 	end),
+	entities5 = Jolt[env]("EntitiesTest"),
 
 	strings1 = Net:register("StringsTest", {Net.Data.String}):SetRateLimit(1000000000, 30),
 	strings2 = Packet("StringsTest", {Packet.String}),
@@ -67,6 +72,7 @@ local module = {
 			})
 		}
 	end),
+	strings5 = Jolt[env]("StringsTest"),
 
 	numbers1 = Net:register("NumbersTest", {Net.Data.NumberU8}):SetRateLimit(1000000000, 30),
 	numbers2 = Packet("NumbersTest", {Packet.NumberU8}),
@@ -78,6 +84,7 @@ local module = {
 			})
 		}
 	end),
+	numbers5 = Jolt[env]("NumbersTest"),
 
 	dict1 = Net:register("DictTest", {[Net.Data.String] = Net.Data.NumberU8}):SetRateLimit(1000000000, 30),
 	dict2 = Packet("DictTest", Packet.Any),
@@ -89,6 +96,10 @@ local module = {
 			})
 		}
 	end),
+	dict5 = Jolt[env]("DictTest"),
+	
+	remoteFunction1 = Net:register("RemoteFunctionTest", {Net.Data.NumberU8}):Response({Net.Data.Boolean})
+		:SetRateLimit(1000000000000, 30)
 }
 
 return module

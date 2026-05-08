@@ -1,7 +1,7 @@
 # Quick Start
 
 ## 1. Setup
-Place QuickNet inside ReplicatedStorage (either directly or a sub container), then simply require it.
+Place QuickNet inside ReplicatedStorage (either directly or a in sub container), then simply require it.
 
 ```lua
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -17,7 +17,7 @@ local event1 = QuickNet:register("SomeEventName", data.NumberU8, data.String)
 ```
 The same exact event must be registered on both the client and the server. To avoid repeating code, use a shared ModuleScript and register events once, then require the module on both client and server.
 
-## Firing an event (Client-Server)
+## 3. Firing an event (Client-Server)
 On the client:
 ```lua
 event1:FireServer(123, "whatever")
@@ -30,7 +30,7 @@ event1.OnServerEvent:Connect(function(player, num, str)
 end)
 ```
 
-## Firing an event (Server-Client)
+## 4. Firing an event (Server-Client)
 On the client:
 ```lua
 event1.OnClientEvent:Connect(function(num, str)

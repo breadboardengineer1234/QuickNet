@@ -5,4 +5,5 @@ High performance networking solution for Roblox.
 ## Getting Started
 
 - [Installation](installation.md)
-- [API](api.md)
+- [QuickStart](quickstart.md)
+- [Types](types.md)

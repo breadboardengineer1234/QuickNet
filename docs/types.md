@@ -150,7 +150,7 @@ Any combination of the array and dictionary types can be nested any which way.
 ## Limitations of Arrays and Dictionaries
 * Static dictionaries can only have numbers or strings as keys (subject to change)
 * Uniform and dynamic arrays have a maximum size of 65,535 elements
-* Uniform and dynamic dictionaries have a maximum of 65,535 number of key-value pairs
+* Uniform and dynamic dictionaries have a maximum of 65,535 key-value pairs
 * Cyclic tables not supported
 * Metatables not supported
 * Tables containing functions not supported

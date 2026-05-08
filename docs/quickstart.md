@@ -9,7 +9,7 @@ local Quicknet = require(ReplicatedStorage.your.path.QuickNet)
 ```
 
 ## 2. Register a network event
-First capture the `Data` field of QuickNet to have easy access to QuickNet's data types. Then simply use the `:register` method to register events.
+First capture the ```Data``` field of QuickNet to have easy access to QuickNet's data types. Then simply use the ```:register``` method to register events.
 
 ```lua
 local data = QuickNet.Data

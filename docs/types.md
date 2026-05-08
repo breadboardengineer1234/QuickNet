@@ -127,7 +127,7 @@ Use a uniform dictionary when the types of both the keys and values are known at
 ### Dynamic Dictionary
 Use a dynamic dictionary when the keys and values can be any type and there can be any number of key-value pairs. Like dynamic arrays, dynamic dictionaries have a significant cost to CPU usage and network bandwidth for the same reasons as discussed for the former. The byte size of a dynamic dictionary is the total size of all the keys and values plus 2 bytes for the length plus 1 byte for each key and each value. To define a dynamic dictionary: ```{[data.Any] = data.Any}```.
 
-## Nested Tables
+## Nested Arrays & Dictionaries
 QuickNet supports any kind of nested table structure. In order to define a nested type, simply nest the table type definitions in the same way as your actual data. Some examples:
 ```lua
 local dictsInArray = {

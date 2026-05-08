@@ -49,7 +49,7 @@ QuickNet:setEnumItems(enums)
 ```
 
 ## Instance
-Any Roblox Instance which exists on both client and server. Since Instances cannot serialize into buffers, they are passed over the network directly. As a result, QuickNet is not faster than default RemoteEvents when sending Instances.
+Any Roblox Instance which exists on both client and server. Since Instances cannot serialize into buffers, they are passed over the network directly. As a result, QuickNet does not have lower CPU and bandwidth usage than RemoteEvents when sending Instances.
 
 ## Any
 When using the Any type there is a 1 byte overhead to store the type tag.

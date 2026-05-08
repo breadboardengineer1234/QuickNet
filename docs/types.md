@@ -129,6 +129,7 @@ Use a dynamic dictionary when the keys and values can be any type and there can 
 
 ## Nested Arrays & Dictionaries
 QuickNet supports any kind of nested table structure. In order to define a nested type, simply nest the table type definitions in the same way as your actual data. Some examples:
+{% raw %}
 ```lua
 local dictsInArray = {
     {
@@ -145,6 +146,7 @@ local arraysInDict = {[data.String] = {data.Boolean, data.Color3, data.Vector3F3
 
 local arraysInArraysInDictsInArray = {{[data.String] = {{data.NumberU8}, data.Vector2F32, data.CFrameFX16, data.NumberF64}}}
 ```
+{% endraw %}
 Any combination of the array and dictionary types can be nested any which way.
 
 ## Fast Paths

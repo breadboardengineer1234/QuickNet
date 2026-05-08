@@ -55,7 +55,7 @@ Any Roblox Instance which exists on both client and server. Since Instances cann
 When using the Any type there is a 1 byte overhead to store the type tag.
 
 ## CFrames (6-24 bytes)
-FX stands for [fixed point](https://en.wikipedia.org/wiki/Fixed-point_arithmetic) and is achieved by simply scaling the value by a constant. Doing so allows us to represent decimal values using integers at the cost of range. For example, for FX8 the position values are multiplied by 10 when encoding, and dividied by 10 when decoding. For rotation values the full range of the integer type is mapped to [-pi, pi], meaning even with FX16 the rotation values retain very high precision. The CFrameF32FX16 type exists for that reason: it uses F32 for the position but FX16 for the rotation.
+FX stands for [fixed point](https://en.wikipedia.org/wiki/Fixed-point_arithmetic) and is achieved by simply scaling the value by a constant. Doing so allows us to represent decimal values using integers at the cost of range. For example, for FX8 the position values are multiplied by 10 when encoding, and dividied by 10 when decoding. For rotation values the full range of the integer type is mapped to [-pi, pi], meaning even with FX16 they retain very high precision. The CFrameF32FX16 type exists for that reason: it uses F32 for the position but FX16 for the rotation.
 | CFrame Type | Minimum Value | Maximum Value | Size (bytes) |
 |-------------|--------------|---------------| ---------------|
 | CFrameFX8    | -12.8            | 12.7           | 6 |

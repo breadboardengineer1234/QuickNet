@@ -1,7 +1,7 @@
 # Types
 This section explains how each type works and indicates their respective sizes. In all code examples, ```local data = QuickNet.Data``` is implied.
 ## Numbers (1-8 bytes)
-QuickNet supports all number types supported by the buffer library as well as float16 (F16). Because float16 lacks native luau support, using it incurs much higher CPU overhead compared to other number types; this is despite QuickNet having a fairly optimal implementation of it. Below is a list of the supported number types with their ranges. Note that floating point numbers stop being able to accurately represent integer increments at values far above/below the min/max bounds.
+QuickNet supports all number types supported by the buffer library as well as float16 (F16). Because float16 is not natively supported in luau, using it incurs much higher CPU overhead compared to other number types; this is despite QuickNet having a fairly optimal implementation of it. Below is a list of the supported number types with their ranges. Note that floating point numbers stop being able to accurately represent integer increments at values far above/below the min/max bounds.
 | Number Type | Minimum Value | Maximum Value | Size (bytes) |
 |-------------|--------------|---------------| ---------------|
 | NumberU8    | 0            | 255           | 1 |

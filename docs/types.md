@@ -73,7 +73,7 @@ FX stands for [fixed point](https://en.wikipedia.org/wiki/Fixed-point_arithmetic
 | Vector3F32   | -3.4e38      | 3.4e38        | 12 |
 
 ## Vector2 (2-8 bytes)
-| Vector3 Type | Minimum Value | Maximum Value | Size (bytes) |
+| Vector2 Type | Minimum Value | Maximum Value | Size (bytes) |
 |-------------|--------------|---------------| ---------------|
 | Vector2FX8    | -12.8            | 12.7           | 2 |
 | Vector2FX16   | -256            | 255.9921875        | 4 |
@@ -103,7 +103,7 @@ Use a static array when the types of each element in the array is known at compi
 Use a uniform array when the type of each element is the same, but the number of elements can vary. Uniform arrays use 2 extra bytes to store the length, but have the highest CPU optimization. The byte size of a uniform array is the sum of the sizes of the elements plus the aforementioned 2 bytes. To define a uniform array, declare a table with 1 type inside of it, such as: ```{data.Vector3}```.
 
 ### Dynamic Array
-Use a dynamic array when both the types of the elements and the number of them are not known at compile time. In other words, a dynamic array can contain any number of elements of any type. However, this flexibility comes at a significant cost to CPU usage and network bandwidth because QuickNet has to perform extra scans on each element to determine its type, then perform extra buffer operations to store a type tag for each element. The size of a dynamic array is the sum of the sizes of the elements plus 2 bytes for the length plus 1 byte for each elemenet. To define a dynamic array simply declare a table with the Any type: ```{data.Any}```.
+Use a dynamic array when both the types of the elements and the number of them are not known at compile time. In other words, a dynamic array can contain any number of elements of any type. However, this flexibility comes at a significant cost to CPU usage and network bandwidth because QuickNet has to perform extra scans on each element to determine its type, then perform extra buffer operations to store a type tag for each element. The size of a dynamic array is the sum of the sizes of the elements plus 2 bytes for the length plus 1 byte for each element. To define a dynamic array simply declare a table with the Any type: ```{data.Any}```.
 
 ## Dictionaries
 Dictionaries are tables with keys that aren't consecutive integers starting from 1. Examples of dictionaries:

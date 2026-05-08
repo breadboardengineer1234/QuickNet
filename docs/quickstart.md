@@ -31,14 +31,14 @@ end)
 ```
 
 ## 4. Firing an event (Server-Client)
+On the server:
+```lua
+event1:FireAllClients(123, "whatever")
+```
 On the client:
 ```lua
 event1.OnClientEvent:Connect(function(num, str)
   print(num)
   print(str)
 end)
-```
-On the server:
-```lua
-event1:FireAllClients(123, "whatever")
 ```

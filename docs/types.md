@@ -49,7 +49,7 @@ QuickNet:setEnumItems(enums)
 ```
 
 ## Instance
-Any Roblox Instance which exists on both client and server. Since Instances cannot serialize into buffers, they are passed over the network directly. As a result, QuickNet does not have lower CPU or bandwidth usage than default RemoteEvents when sending Instances.
+Any Roblox Instance which exists on both client and server. Since Instances cannot serialize into buffers, they are passed over the network directly. As a result, QuickNet does not usually have better performance than default RemoteEvents when sending Instances. The exception is under heavy load when QuickNet can take advantage of its call batching.
 
 ## Any
 When using the Any type there is a 1 byte overhead to store the type tag.
@@ -116,7 +116,7 @@ Examples of non-dictionaries:
 local notDict1 = {1, 55, 43, 89, 141241}
 local notDict2 = {[1] = "whatever", [2] = "somestring", [3] = "someotherstring"}
 ```
-QuickNet supports 3 types of dictionaries: static dictionaries, uniform dictionaries, and dynamic dictionaries. With some exceptions, any QuickNet data type can be used as keys.
+QuickNet supports 3 types of dictionaries: static dictionaries, uniform dictionaries, and dynamic dictionaries. With some exceptions*, any QuickNet data type can be used as keys.
 
 ### Static Dictionary
 Use a static dictionary when the keys themselves and the types of the values are known at compile time. Static dictionaries are extremely powerful because they can reduce the network traffic by 2x. How is this possible? Because the keys are known at compile time QuickNet is able to build a sorted keys map on start up, allowing us to send only the values over the network without losing any information. Therefore, the byte size of a static dictionary is only the sum of the sizes of each value. Furthermore, because we send 2x less data we also perform 2x less buffer operations, which significantly reduces the CPU overhead. Note that static dictionaries currently only support strings and numbers as keys (subject to change). To define a static dictionary, declare a table with the keys set equal to the types of the corresponding values: ```{name = data.String, health = data.NumberU32, speed = data.NumberU8, isAlive = data.Boolean}```.
@@ -147,10 +147,29 @@ local arraysInArraysInDictsInArray = {{[data.String] = {{data.NumberU8}, data.Ve
 ```
 Any combination of the array and dictionary types can be nested any which way.
 
+## Fast Paths
+QuickNet can boost performance for eligible arrays and dictionaries via fast paths. Think of a fast path like an expressway. Internally, QuickNet takes advantage of data uniformity to vectorize operations, which reduces the number of buffer operations and function calls, and leads to significantly lower CPU usage. Currently, fast paths can be accessed when using static arrays where each element is the same type as every other element, uniform arrays, static dictionaries where each value is the same type as every other value, and uniform dictionaries. Here's a list of primitive types with fast paths:
+* NumberU8
+* NumberI32
+* NumberF32
+* String
+* Boolean
+
 ## Limitations of Arrays and Dictionaries
-* Static dictionaries can only have numbers or strings as keys (subject to change)
+* *Static dictionaries can only have numbers or strings as keys (subject to change)
 * Uniform and dynamic arrays have a maximum size of 65,535 elements
 * Uniform and dynamic dictionaries have a maximum of 65,535 key-value pairs
 * Cyclic tables not supported
 * Metatables not supported
 * Tables containing functions not supported
+
+## Performance
+While QuickNet is highly optimized overall, it's not possible to achieve the same level of performance for every use case. Here are some tips to extract the maximum performance out of QuickNet:
+* Take advantage of fast paths whenever possible
+* Do not use Any type and dynamic tables unless necessary
+* Avoid sending deeply nested tables
+* Avoid sending instances
+* Use NumberF32 over NumberF16 in most cases
+* Send Vector3s instead of CFrames if there is no rotation
+
+Note: not following these guidelines will not suddenly lag or crash your game; QuickNet should still have better performance than default Remotes. These guidelines are for users who want the absolute maximum performance.

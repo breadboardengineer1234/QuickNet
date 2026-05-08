@@ -5,7 +5,7 @@ High performance networking solution for Roblox.
 ## Getting Started
 
 - [Installation](installation.md)
-- [QuickStart](quickstart.md)
+- [Quick Start](quickstart.md)
 - [Types](types.md)
 - [General](general.md)
 - [Events](events.md)

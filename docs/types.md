@@ -2,6 +2,7 @@
 This section explains how each type works and indicates their respective sizes. In all code examples, ```local data = QuickNet.Data``` is implied.
 ## Numbers (1-8 bytes)
 QuickNet supports all number types supported by the buffer library as well as float16 (F16). Because float16 is not natively supported in luau, using it incurs much higher CPU overhead compared to other number types; this is despite QuickNet having a fairly optimal implementation of it. Below is a list of the supported number types with their ranges. Note that floating point numbers stop being able to accurately represent integer increments at values far above/below the min/max bounds.
+
 | Number Type | Minimum Value | Maximum Value | Size (bytes) |
 |-------------|--------------|---------------| ---------------|
 | NumberU8    | 0            | 255           | 1 |
@@ -56,6 +57,7 @@ When using the Any type there is a 1 byte overhead to store the type tag.
 
 ## CFrames (6-24 bytes)
 FX stands for [fixed point](https://en.wikipedia.org/wiki/Fixed-point_arithmetic) and is achieved by simply scaling the value by a constant. Doing so allows us to represent decimal values using integers at the cost of range. For example, for FX8 the position values are multiplied by 10 when encoding, and dividied by 10 when decoding. For rotation values the full range of the integer type is mapped to [-pi, pi], meaning even with FX16 they retain very high precision. The CFrameF32FX16 type exists for that reason: it uses F32 for the position but FX16 for the rotation.
+
 | CFrame Type | Minimum Value | Maximum Value | Size (bytes) |
 |-------------|--------------|---------------| ---------------|
 | CFrameFX8    | -12.8            | 12.7           | 6 |
@@ -65,6 +67,7 @@ FX stands for [fixed point](https://en.wikipedia.org/wiki/Fixed-point_arithmetic
 | CFrameF32   | -3.4e38      | 3.4e38        | 24 |
 
 ## Vector3 (3-12 bytes)
+
 | Vector3 Type | Minimum Value | Maximum Value | Size (bytes) |
 |-------------|--------------|---------------| ---------------|
 | Vector3FX8    | -12.8            | 12.7           | 3 |
@@ -73,6 +76,7 @@ FX stands for [fixed point](https://en.wikipedia.org/wiki/Fixed-point_arithmetic
 | Vector3F32   | -3.4e38      | 3.4e38        | 12 |
 
 ## Vector2 (2-8 bytes)
+
 | Vector2 Type | Minimum Value | Maximum Value | Size (bytes) |
 |-------------|--------------|---------------| ---------------|
 | Vector2FX8    | -12.8            | 12.7           | 2 |

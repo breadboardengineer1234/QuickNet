@@ -34,7 +34,7 @@ local myFunction = QuickNet:register("MyFunction", {[data.String] = data.NumberI
 ```
 
 ### ``:SetRateLimit``
-Sets the rate limit for the network event. The first argument is the maximum number of calls, the second argument is the time window in seconds. For example, if the max calls is 20 and the time window is 1, the event can be fired (by the same client) at most 20 times within a 1 second period. Additional fires will be dropped until the timer resets. Calling this meethod returns the ``NetworkEvent`` itself.
+Sets the rate limit for the network event. The first argument is the maximum number of calls, the second argument is the time window in seconds. For example, if the max calls is 20 and the time window is 1, the event can be fired (by the same client) at most 20 times within a 1 second period. Additional fires will be dropped until the timer resets. Calling this method returns the ``NetworkEvent`` itself.
 ```lua
 myEvent:SetRateLimit(20, 1)
 ```
@@ -47,7 +47,7 @@ myFunction:SetResponseTimeout(10)
 ```
 
 ### ``:SetRateLimit``
-Sets the rate limit for the network event. The first argument is the maximum number of calls, the second argument is the time window in seconds. For example, if the max calls is 20 and the time window is 1, the event can be fired (by the same client) at most 20 times within a 1 second period. Additional fires will be dropped until the timer resets. Calling this meethod returns the ``NetworkEvent`` itself.
+Sets the rate limit for the network function. The first argument is the maximum number of calls, the second argument is the time window in seconds. For example, if the max calls is 20 and the time window is 1, the event can be fired (by the same client) at most 20 times within a 1 second period. Additional fires will be dropped until the timer resets. Calling this method returns the ``NetworkEvent`` itself.
 ```lua
 myEvent:SetRateLimit(20, 1)
 ```

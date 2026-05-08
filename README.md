@@ -1,4 +1,9 @@
 # QuickNet
-Highly optimized networking solution for Roblox
 
-[## Get Started](index.md)
+High performance networking solution for Roblox.
+
+## Getting Started
+
+- [Installation](installation.md)
+- [QuickStart](quickstart.md)
+- [Types](types.md)

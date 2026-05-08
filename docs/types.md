@@ -132,12 +132,12 @@ QuickNet supports any kind of nested table structure. In order to define a neste
 ```lua
 local dictsInArray = {
     {
-      id = Net.Data.NumberU8,
-      x = Net.Data.NumberU8,
-      y = Net.Data.NumberU8,
-      z = Net.Data.NumberU8,
-      orientation = Net.Data.NumberU8,
-      animation = Net.Data.NumberU8,
+      id = data.NumberU8,
+      x = data.NumberU8,
+      y = data.NumberU8,
+      z = data.NumberU8,
+      orientation = data.NumberU8,
+      animation = data.NumberU8,
   }
 }
 

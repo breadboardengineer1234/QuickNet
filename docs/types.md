@@ -141,9 +141,9 @@ local dictsInArray = {
   }
 }
 
-local arraysInDict = {[data.String] = {data.Boolean, data.Color3, data.Vector3F32}}
+local arraysInDict = { [data.String] = {data.Boolean, data.Color3, data.Vector3F32} }
 
-local arraysInArraysInDictsInArray = { {[data.String] = { {data.NumberU8}, data.Vector2F32, data.CFrameFX16, data.NumberF64} } }
+local arraysInArraysInDictsInArray = { { [data.String] = { {data.NumberU8}, data.Vector2F32, data.CFrameFX16, data.NumberF64} } }
 ```
 Any combination of the array and dictionary types can be nested any which way.
 

@@ -1,10 +1,10 @@
 :root {
-  --bg: #ffffff;
-  --text: #111111;
-  --muted: #666666;
-  --border: #e5e5e5;
-  --sidebar-bg: #f7f7f7;
-  --link: #2563eb;
+  --bg: #1e1f24;
+  --text: #e6e6e6;
+  --muted: #a1a1aa;
+  --border: #2c2f36;
+  --sidebar-bg: #23252b;
+  --link: #7aa2f7;
 }
 
 @media (prefers-color-scheme: dark) {

@@ -1,9 +1,8 @@
 # Functions
 
 ## ``.OnServerInvoke``
-Fires when a network function is invoked by a client. This signal must be set to a callback that accepts the player and arguments and returns a set of values. The callback is run synchronously and can block other calls from the same client if it yields.
-
 ### ``callback(Player, A...) -> B...``
+Fires when a network function is invoked by a client. This signal must be set to a callback that accepts the player and arguments and returns a set of values. The callback is run synchronously and can block other calls from the same client if it yields.
 
 ```lua
 myFunction.OnServerInvoke = function(player, data)
@@ -13,9 +12,8 @@ end
 ```
 
 ## ``.OnServerInvokeAsync``
-Does the same thing as ``.OnServerInvoke`` except it runs the attached callback asynchronously, allowing it to yield safely.
-
 ### ``callback(Player, A...) -> B...``
+Does the same thing as ``.OnServerInvoke`` except it runs the attached callback asynchronously, allowing it to yield safely.
 
 ```lua
 myFunction.OnServerInvokeAsync = function(player, data)

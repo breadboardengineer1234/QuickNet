@@ -81,8 +81,41 @@ body {
 }
 
 /* Headings */
-h1, h2, h3 {
+/* Reset default heading styles */
+h1, h2, h3, h4, h5, h6 {
+  margin: 0;
+  font-weight: 700;
   line-height: 1.2;
+}
+
+/* H1 - page title */
+h1 {
+  font-size: 34px;
+  margin-bottom: 18px;
+}
+
+/* H2 - major sections */
+h2 {
+  font-size: 26px;
+  margin-top: 28px;
+  margin-bottom: 14px;
+  border-bottom: 1px solid var(--border);
+  padding-bottom: 6px;
+}
+
+/* H3 - subsections */
+h3 {
+  font-size: 20px;
+  margin-top: 22px;
+  margin-bottom: 10px;
+}
+
+/* H4 - fine detail (optional but useful for APIs) */
+h4 {
+  font-size: 16px;
+  margin-top: 16px;
+  margin-bottom: 6px;
+  color: var(--muted);
 }
 
 /* Code blocks */

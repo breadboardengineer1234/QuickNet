@@ -1,3 +1,8 @@
+---
+layout: docs
+title: Types
+---
+
 # Types
 This section explains how each type works and indicates their respective sizes. In all code examples, ```local data = QuickNet.Data``` is implied.
 ## Numbers (1-8 bytes)

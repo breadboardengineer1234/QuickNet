@@ -1,3 +1,8 @@
+---
+layout: docs
+title: Functions
+---
+
 # Functions
 
 ## ``.OnServerInvoke``

@@ -23,6 +23,7 @@ Does the same thing as ``:Connect`` but runs the listener asynchronously. Use th
 local conn = myEvent.OnServerEvent:ConnectAsync(function(player, num, str, bool)
   print(num)
   print(str)
+  task.wait(5)
   print(bool)
 end)
 ```
@@ -77,6 +78,7 @@ Does the same thing as ``:Connect`` but runs the listener asynchronously. Use th
 local conn = myEvent.OnClientEvent:ConnectAsync(function(num, str, bool)
   print(num)
   print(str)
+  task.wait(5)
   print(bool)
 end)
 ```

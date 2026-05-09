@@ -22,7 +22,7 @@ myFunction.OnServerInvokeAsync = function(player, data)
 end
 ```
 
-## ``:InvokeServer(A...) -> B...``
+## ``:InvokeServer(A...): B...``
 Invokes the server with the given arguments, yields the current thread until the server responds with the return values, then returns these values back to the caller.
 ```lua
 local data = {Key1 = 2, Key2 = 4, Key3 = 8, Key4 = 16}

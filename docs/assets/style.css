@@ -4,7 +4,7 @@
     --text: #eaeaea;
     --muted: #a0a0a0;
     --border: #2a2a2a;
-    --sidebar-bg: #383838;
+    --sidebar-bg: #1c1c1c;
     --link: #60a5fa;
   }
 }
@@ -87,7 +87,7 @@ h1 {
 
 /* H2 - major sections */
 h2 {
-  font-size: 30px;
+  font-size: 26px;
   margin-top: 28px;
   margin-bottom: 14px;
   border-bottom: 1px solid var(--border);
@@ -96,79 +96,30 @@ h2 {
 
 /* H3 - subsections */
 h3 {
-  font-size: 26px;
+  font-size: 23px;
   margin-top: 22px;
   margin-bottom: 10px;
 }
 
 /* H4 - fine detail (optional but useful for APIs) */
 h4 {
-  font-size: 20px;
+  font-size: 16px;
   margin-top: 16px;
   margin-bottom: 6px;
   color: var(--muted);
 }
 
-/* Code blocks */
-/* Base code block container (Rouge) */
-/* Keywords - RED */
-.highlight .k,
-.highlight .kd,
-.highlight .kr {
-  color: #ff4d4d;
+/* CODE */
+pre {
+  background: #0d1117;
+  color: #c9d1d9;
+  padding: 12px;
+  border-radius: 6px;
+  overflow-x: auto;
 }
 
-/* Strings - GREEN */
-.highlight .s,
-.highlight .s1,
-.highlight .s2 {
-  color: #6aff6a;
-}
-
-/* Numbers - DARK YELLOW */
-.highlight .m,
-.highlight .mi,
-.highlight .mf {
-  color: #c9a227;
-}
-
-/* Functions (catch ALL variants) - LIGHT YELLOW */
-.highlight .nf,
-.highlight .nb,
-.highlight .n.f,
-.highlight .nx {
-  color: #ffe66d;
-}
-
-/* Table keys / properties - BLUE */
-.highlight .na,
-.highlight .no,
-.highlight .nx {
-  color: #4da3ff;
-}
-
-/* Booleans - BRIGHT YELLOW */
-.highlight .kc {
-  color: #ffd700;
-}
-
-/* Variables / fallback identifiers - WHITE */
-.highlight .n,
-.highlight .nb {
-  color: #ffffff;
-}
-
-/* Operators - WHITE */
-.highlight .o {
-  color: #ffffff;
-}
-
-/* Comments - GRAY */
-.highlight .c,
-.highlight .c1,
-.highlight .cm {
-  color: #7a7a7a;
-  font-style: italic;
+code {
+  font-family: Consolas, Monaco, "Courier New", monospace;
 }
 
 /* Tables */

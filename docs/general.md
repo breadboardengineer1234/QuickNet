@@ -13,7 +13,7 @@ local myEvent = QuickNet:register("MyEvent", data.NumberF32, data.String, data.B
 ```
 
 ## ``:setEnumItems(enums: {EnumItem})``
-Attaches a table of EnumItems to enable the use of the ``data.EnumItem`` type. The provided table must be a flat array containing all EnumItems that will be used. This function should be called once on start up on start up for both the server and clients.
+Attaches a table of EnumItems to enable the use of the ``data.EnumItem`` type. The provided table must be a flat array containing all EnumItems that will be used. This function should be called once on start up for both the server and clients.
 ```lua
 local enums = {
   Enum.EasingDirection.Out,

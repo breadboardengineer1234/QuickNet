@@ -1,10 +1,10 @@
 :root {
-  --bg: #1e1f24;
-  --text: #e6e6e6;
-  --muted: #a1a1aa;
-  --border: #2c2f36;
-  --sidebar-bg: #23252b;
-  --link: #7aa2f7;
+  --bg: #2f333b;         /* softer page background */
+  --text: #e6e6e6;       /* main text */
+  --muted: #a1a1aa;      /* secondary text */
+  --border: #3b404c;     /* softer borders */
+  --sidebar-bg: #262a33; /* slightly darker sidebar */
+  --link: #7aa2f7;       /* modern blue */
 }
 
 @media (prefers-color-scheme: dark) {
@@ -61,15 +61,16 @@ body {
   margin: 12px 0;
   font-size: 16px;
   font-weight: 600;
-  padding: 6px 8px;
+  padding: 8px 10px;
   border-radius: 6px;
-  transition: all 0.15s ease;
+  transition: background 0.15s ease, color 0.15s ease;
 }
 
-/* Sidebar hover */
+/* hover state */
 .sidebar a:hover {
-  color: var(--link);
-  background: rgba(122, 162, 247, 0.08);
+  background: rgba(255, 255, 255, 0.08); /* light gray highlight */
+  color: var(--text); /* no blue shift */
+  text-decoration: none; /* guarantees no underline */
 }
 
 /* Main content */
@@ -85,17 +86,38 @@ h1, h2, h3 {
 }
 
 /* Code blocks */
-pre, code {
-  background: #1e1e1e;
-  color: #f5f5f5;
-  padding: 4px 6px;
+/* Base code block container (Rouge) */
+.highlight {
+  background: #22252c;
+  padding: 12px;
+  border-radius: 8px;
+  overflow-x: auto;
+}
+
+/* Pre inside highlight */
+.highlight pre {
+  margin: 0;
+  background: transparent;
+}
+
+/* Inline code fallback */
+code {
+  background: rgba(255,255,255,0.06);
+  padding: 2px 5px;
   border-radius: 4px;
 }
 
-pre {
-  padding: 12px;
-  overflow-x: auto;
-}
+/* Token colors (Rouge classes) */
+.highlight .k { color: #c678dd; } /* keyword */
+.highlight .kd { color: #c678dd; }
+.highlight .s { color: #98c379; }  /* string */
+.highlight .s1 { color: #98c379; }
+.highlight .s2 { color: #98c379; }
+.highlight .n { color: #e5c07b; }  /* name */
+.highlight .nb { color: #e5c07b; }
+.highlight .o { color: #56b6c2; }  /* operator */
+.highlight .c { color: #7f848e; font-style: italic; } /* comment */
+.highlight .c1 { color: #7f848e; font-style: italic; }
 
 /* Tables */
 table {

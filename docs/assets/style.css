@@ -109,7 +109,7 @@ h4 {
 
 /* CODE */
 code:not(pre code) {
-  background: #575757;   /* visible gray */
+  background: #2e2e2e;   /* visible gray */
   color: #f5f5f5;
   padding: 2px 6px;
   border-radius: 4px;

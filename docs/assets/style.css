@@ -7,7 +7,6 @@
     --link: #60a5fa;
   }
 
-
 /* Base page */
 body {
   margin: 0;
@@ -110,7 +109,7 @@ h4 {
 
 /* CODE */
 code:not(pre code) {
-  background: #3a3f4a;   /* visible gray */
+  background: #575757;   /* visible gray */
   color: #e6e6e6;
   padding: 2px 6px;
   border-radius: 4px;
@@ -186,7 +185,7 @@ code {
 /* Operators + fallback */
 .highlight .o,
 .highlight .n {
-  color: #c9d1d9;
+  color: #e6e6e6;
 }
 
 /* Tables */

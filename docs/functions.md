@@ -28,7 +28,7 @@ end
 ```
 
 ## ``:InvokeServer(A...): B...``
-Invokes the server with the given arguments, yields the current thread until the server responds with the return values, then returns these values back to the caller.
+Invokes the server with the given arguments, yields the current thread until the server responds with the return values, then returns these values back to the caller. There is a limit of 65,535 unresolved invokes at any time. Exceeding this limit will cause older invokes to time out.
 ```lua
 local data = {Key1 = 2, Key2 = 4, Key3 = 8, Key4 = 16}
 local success, msg = myFunction:InvokeServer(data)

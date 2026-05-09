@@ -110,16 +110,74 @@ h4 {
 }
 
 /* CODE */
-pre {
-  background: #0d1117;
-  color: #c9d1d9;
-  padding: 12px;
+.highlight {
+  background: #1f1f1f; /* solid dark gray */
+  border: 1px solid #2a2a2a;
   border-radius: 6px;
-  overflow-x: auto;
+  overflow: hidden;
+}
+
+.highlight pre {
+  margin: 0;
+  padding: 12px;
+  background: transparent;
+  border: none;
 }
 
 code {
   font-family: Consolas, Monaco, "Courier New", monospace;
+}
+
+/* Keywords */
+.highlight .k,
+.highlight .kd {
+  color: #ff5c5c;
+}
+
+/* Strings */
+.highlight .s,
+.highlight .s1,
+.highlight .s2 {
+  color: #6ee56e;
+}
+
+/* Numbers */
+.highlight .m,
+.highlight .mi,
+.highlight .mf {
+  color: #c9a227;
+}
+
+/* Functions */
+.highlight .nf {
+  color: #ffe08a;
+}
+
+/* Properties / keys */
+.highlight .na,
+.highlight .no,
+.highlight .nx {
+  color: #4da3ff;
+}
+
+/* Booleans */
+.highlight .kc {
+  color: #ffd84d;
+}
+
+/* Comments */
+.highlight .c,
+.highlight .c1,
+.highlight .cm {
+  color: #7a7a7a;
+  font-style: italic;
+}
+
+/* Operators + fallback */
+.highlight .o,
+.highlight .n,
+.highlight .nb {
+  color: #e5e5e5;
 }
 
 /* Tables */

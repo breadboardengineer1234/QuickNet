@@ -110,6 +110,14 @@ h4 {
 }
 
 /* CODE */
+code:not(pre code) {
+  background: #3a3f4a;   /* visible gray */
+  color: #e6e6e6;
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-size: 0.95em;
+}
+
 .highlight {
   background: #1f1f1f; /* solid dark gray */
   border: 1px solid #2a2a2a;
@@ -129,55 +137,57 @@ code {
 }
 
 /* Keywords */
+/* Keywords */
 .highlight .k,
-.highlight .kd {
-  color: #ff5c5c;
+.highlight .kd,
+.highlight .kr {
+  color: #ff7b72;
 }
 
 /* Strings */
 .highlight .s,
 .highlight .s1,
 .highlight .s2 {
-  color: #6ee56e;
+  color: #a5d6ff;
 }
 
 /* Numbers */
 .highlight .m,
 .highlight .mi,
 .highlight .mf {
-  color: #c9a227;
+  color: #79c0ff;
 }
 
 /* Functions */
-.highlight .nf {
-  color: #ffe08a;
+.highlight .nf,
+.highlight .nb {
+  color: #d2a8ff;
 }
 
 /* Properties / keys */
 .highlight .na,
 .highlight .no,
 .highlight .nx {
-  color: #4da3ff;
+  color: #79c0ff;
 }
 
 /* Booleans */
 .highlight .kc {
-  color: #ffd84d;
+  color: #ffab70;
 }
 
 /* Comments */
 .highlight .c,
 .highlight .c1,
 .highlight .cm {
-  color: #7a7a7a;
+  color: #8b949e;
   font-style: italic;
 }
 
 /* Operators + fallback */
 .highlight .o,
-.highlight .n,
-.highlight .nb {
-  color: #e5e5e5;
+.highlight .n {
+  color: #c9d1d9;
 }
 
 /* Tables */

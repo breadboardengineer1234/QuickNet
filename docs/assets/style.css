@@ -4,7 +4,7 @@
     --text: #eaeaea;
     --muted: #a0a0a0;
     --border: #2a2a2a;
-    --sidebar-bg: #262a33;
+    --sidebar-bg: #383838;
     --link: #60a5fa;
   }
 }
@@ -87,7 +87,7 @@ h1 {
 
 /* H2 - major sections */
 h2 {
-  font-size: 26px;
+  font-size: 30px;
   margin-top: 28px;
   margin-bottom: 14px;
   border-bottom: 1px solid var(--border);
@@ -96,14 +96,14 @@ h2 {
 
 /* H3 - subsections */
 h3 {
-  font-size: 20px;
+  font-size: 26px;
   margin-top: 22px;
   margin-bottom: 10px;
 }
 
 /* H4 - fine detail (optional but useful for APIs) */
 h4 {
-  font-size: 16px;
+  font-size: 20px;
   margin-top: 16px;
   margin-bottom: 6px;
   color: var(--muted);
@@ -111,24 +111,10 @@ h4 {
 
 /* Code blocks */
 /* Base code block container (Rouge) */
-.highlight {
-  background: #1f1f1f;
-  border: 1px solid #2a2a2a;
-  border-radius: 6px;
-  padding: 12px;
-  overflow-x: auto;
-}
-
-.highlight pre {
-  margin: 0;
-  background: transparent;
-  color: #ffffff; /* default = variables (white) */
-  font-family: Consolas, Monaco, "Courier New", monospace;
-}
-
-/* Keywords (local, function, if, then, end, etc.) - RED */
+/* Keywords - RED */
 .highlight .k,
-.highlight .kd {
+.highlight .kd,
+.highlight .kr {
   color: #ff4d4d;
 }
 
@@ -141,18 +127,23 @@ h4 {
 
 /* Numbers - DARK YELLOW */
 .highlight .m,
-.highlight .mi {
+.highlight .mi,
+.highlight .mf {
   color: #c9a227;
 }
 
-/* Functions - LIGHT YELLOW */
-.highlight .nf {
+/* Functions (catch ALL variants) - LIGHT YELLOW */
+.highlight .nf,
+.highlight .nb,
+.highlight .n.f,
+.highlight .nx {
   color: #ffe66d;
 }
 
-/* Properties / table indexes - BLUE */
+/* Table keys / properties - BLUE */
 .highlight .na,
-.highlight .no {
+.highlight .no,
+.highlight .nx {
   color: #4da3ff;
 }
 
@@ -161,14 +152,14 @@ h4 {
   color: #ffd700;
 }
 
-/* Operators - WHITE */
-.highlight .o {
+/* Variables / fallback identifiers - WHITE */
+.highlight .n,
+.highlight .nb {
   color: #ffffff;
 }
 
-/* Variables / identifiers - WHITE */
-.highlight .n,
-.highlight .nb {
+/* Operators - WHITE */
+.highlight .o {
   color: #ffffff;
 }
 

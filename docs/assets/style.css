@@ -120,7 +120,8 @@ code:not(pre code) {
   background: #1f1f1f; /* solid dark gray */
   border: 1px solid #2a2a2a;
   border-radius: 6px;
-  overflow: hidden;
+  overflow-x: auto;
+  overflow-y: hidden;
 }
 
 .highlight pre {
@@ -128,6 +129,7 @@ code:not(pre code) {
   padding: 12px;
   background: transparent;
   border: none;
+  overflow: visible;
 }
 
 code {

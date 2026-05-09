@@ -1,3 +1,8 @@
+---
+layout: docs
+title: Cleanup
+---
+
 ## ``QuickNetConnection``
 QuickNetConnection objects can be used to clean up network connections. They are compatible with the Janitor module.
 

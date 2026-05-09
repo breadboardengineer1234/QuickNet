@@ -4,7 +4,7 @@ title: Benchmarks
 ---
 
 # Benchmarks
-The benchmarks are conducted by firing the network event 1000 times per frame with the same data for 10 seconds. At the end of this period, the average FPS and Kbps are recorded. Each data contains 500-2000 individual elements, depending on the test. All benchmarks are conducted in Roblox studio. See the benchmarks [source code](https://github.com/breadboardengineer1234/QuickNet/tree/main/benchmarks) for more details.
+Benchmarks are conducted by firing the network event 1000 times per frame with the same data for 10 seconds. At the end of this period, the average FPS and Kbps are recorded. Each data contains 500-2000 individual elements, depending on the test. All benchmarks are conducted in Roblox studio. See the benchmarks [source code](https://github.com/breadboardengineer1234/QuickNet/tree/main/benchmarks) for more details.
 
 ### Entities Test
 

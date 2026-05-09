@@ -1,3 +1,8 @@
+---
+layout: docs
+title: Home
+---
+
 # QuickNet
 
 High performance networking solution for Roblox.

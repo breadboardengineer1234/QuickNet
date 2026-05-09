@@ -1,3 +1,8 @@
+---
+layout: docs
+title: General
+---
+
 # General
 The following methods must be called on both client and server.
 

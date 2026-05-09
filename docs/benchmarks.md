@@ -4,7 +4,7 @@ title: Benchmarks
 ---
 
 # Benchmarks
-These benchmarks are conducted by firing the network event 1000 times per frame with the same data for 10 seconds, at the end of which the average FPS and Kbps are recorded. Each data contains 500-2000 individual elements, depending on the test. All benchmarks are conducted in studio. See the benchmarks [source code](https://github.com/breadboardengineer1234/QuickNet/tree/main/benchmarks) for more details.
+The benchmarks are conducted by firing the network event 1000 times per frame with the same data for 10 seconds. At the end of this period, the average FPS and Kbps are recorded. Each data contains 500-2000 individual elements, depending on the test. All benchmarks are conducted in Roblox studio. See the benchmarks [source code](https://github.com/breadboardengineer1234/QuickNet/tree/main/benchmarks) for more details.
 
 ### Entities Test
 
@@ -57,7 +57,7 @@ These benchmarks are conducted by firing the network event 1000 times per frame 
 | **QuickNet** | **22.52** | **3.68x** | **142.24** |
 
 ### RemoteFunction Test
-Unlike the other tests, the RemoteFunction test is conducted by sending a table of 500 numbers 1000 times per frame with a response of a table of 500 booleans for every send. The metrics are recorded at the end of a 5 minute period. This test helps us observe performance degradation over an extended period of heavy load.
+The RemoteFunction test is conducted by sending a table of 500 numbers 1000 times per frame with a response of 500 booleans for every send. Each send is wrapped in a task.spawn to ensure they are not blocked. The metrics are recorded at the end of a 5 minute period.
 
 | Networking Tool | FPS | FPS Scale | Kbps 
 |--------------------|------------------------|--------------------|----------------|

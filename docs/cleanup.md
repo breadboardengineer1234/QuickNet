@@ -8,12 +8,12 @@ local isConnected = conn.Connected
 print(isConnected)
 ```
 
-### ``:Disconnect``
+### ``:Disconnect()``
 Disconnects a listener.
 ```lua
 conn:Disconnect()
 ```
 
-### ``:Destroy``
+### ``:Destroy()``
 Does the same thing as ``:Disconnect``.
 

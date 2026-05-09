@@ -1,4 +1,9 @@
-# Quick Start
+---
+layout: docs
+title: Quickstart
+---
+
+# Quickstart
 
 ## 1. Setup
 Place QuickNet inside ReplicatedStorage (either directly or a in sub container), then simply require it.

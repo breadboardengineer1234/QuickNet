@@ -1,10 +1,3 @@
----
-layout: docs
-title: Installation
----
-
-# Installation
-
 ## Option 1
 The easiest way to install QuickNet is to download the latest release here: [Download](https://github.com/breadboardengineer1234/QuickNet/releases)
 

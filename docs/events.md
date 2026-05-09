@@ -3,7 +3,7 @@
 ## ``.OnServerEvent``
 This signal fires when data sent by a client arrives on the server.
 
-### ``:Connect(callback: (Player, A...) -> ())``
+### ``:Connect(callback: (Player, A...) -> ()): QuickNetConnection``
 Attaches a listener to the signal. When using this method QuickNet will run the listener synchronously, meaning any yields will block other calls from the same client. Only use this method if the listener does not yield. This method accepts a callback as input where the first argument is the player that initiated the fire, and the following arguments are the event arguments. This method returns a ``QuickNetConnection`` object.
 ```lua
 local conn = myEvent.OnServerEvent:Connect(function(player, num, str, bool)
@@ -12,7 +12,7 @@ local conn = myEvent.OnServerEvent:Connect(function(player, num, str, bool)
   print(bool)
 end)
 ```
-### ``:ConnectAsync(callback: (Player, A...) -> ())``
+### ``:ConnectAsync(callback: (Player, A...) -> ()): QuickNetConnection``
 Does the same thing as ``:Connect`` but runs the listener asynchronously. Use this method for listeners that yield. Note that async connections have higher overhead. Calling this method returns a ``QuickNetConnection`` object.
 ```lua
 local conn = myEvent.OnServerEvent:ConnectAsync(function(player, num, str, bool)
@@ -56,7 +56,7 @@ myEvent:FireAllExcept(blacklistedPlayer, 123, "blah", true)
 ## ``.OnClientEvent``
 This signal fires when data sent by the server arrives on the client.
 
-### ``:Connect(callback: (A...) -> ())``
+### ``:Connect(callback: (A...) -> ()): QuickNetConnection``
 Attaches a listener to the signal. When using this method QuickNet will run the listener synchronously, meaning any yields will block other calls from the server. Only use this method if the listener does not yield. This method accepts a callback as input where the arguments are the event arguments and returns a ``QuickNetConnection`` object.
 ```lua
 local conn = myEvent.OnClientEvent:Connect(function(num, str, bool)
@@ -66,7 +66,7 @@ local conn = myEvent.OnClientEvent:Connect(function(num, str, bool)
 end)
 ```
 
-### ``:ConnectAsync(callback: (A...) -> ())``
+### ``:ConnectAsync(callback: (A...) -> ()): QuickNetConnection``
 Does the same thing as ``:Connect`` but runs the listener asynchronously. Use this method for listeners that yield. Note that async connections have higher overhead. Calling this method returns a ``QuickNetConnection`` object.
 ```lua
 local conn = myEvent.OnClientEvent:ConnectAsync(function(num, str, bool)

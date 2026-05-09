@@ -2,8 +2,4 @@
 
 High performance networking solution for Roblox.
 
-## Getting Started
-
-- [Installation](installation.md)
-- [QuickStart](quickstart.md)
-- [Types](types.md)
+[## Get Started](https://breadboardengineer1234.github.io/QuickNet/)

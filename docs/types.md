@@ -58,7 +58,10 @@ QuickNet:setEnumItems(enums)
 Any Roblox Instance which exists on both client and server. Since Instances cannot serialize into buffers, they are passed over the network directly. As a result, QuickNet does not usually have better performance than default RemoteEvents when sending Instances. The exception is under heavy load when QuickNet can take advantage of its call batching.
 
 ## Any
-When using the Any type there is a 1 byte overhead to store the type tag.
+Any QuickNet data type. When using the Any type there is a 1 byte overhead to store the type tag.
+
+## Optionals
+To define an optional type simply use the Any type and cast it to the desired type. For example, if we wanted an optional Color3 we would do: ```data.Any :: Color3?```
 
 ## CFrames (6-24 bytes)
 FX stands for [fixed point](https://en.wikipedia.org/wiki/Fixed-point_arithmetic) and is achieved by simply scaling the value by a constant. Doing so allows us to represent decimal values using integers at the cost of range. For example, for FX8 the position values are multiplied by 10 when encoding, and dividied by 10 when decoding. For rotation values the full range of the integer type is mapped to [-pi, pi], meaning even with FX16 they retain very high precision. The CFrameF32FX16 type exists for that reason: it uses F32 for the position but FX16 for the rotation.

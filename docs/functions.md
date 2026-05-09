@@ -23,6 +23,7 @@ Does the same thing as ``.OnServerInvoke`` except it runs the attached callback 
 ```lua
 myFunction.OnServerInvokeAsync = function(player, data)
   print(data)
+  task.wait(3)
   return true, "whatever"
 end
 ```

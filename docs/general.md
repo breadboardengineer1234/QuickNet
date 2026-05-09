@@ -7,7 +7,7 @@ title: General
 The following methods must be called on both client and server.
 
 ## ``:register(name: string, ...: A...): NetworkEvent``
-Registers a network event. This method takes in a name and the types of the event arguments and returns a ``NetworkEvent`` object. Providing a name that has already been registered will throw an error.
+Registers a network event. This method takes in a name and the types of the event arguments and returns a ``NetworkEvent`` object. The max number of events is 255. Attempting to register more than this amount will throw an error. Providing a name that has already been registered will also throw an error.
 ```lua
 local myEvent = QuickNet:register("MyEvent", data.NumberF32, data.String, data.Boolean)
 ```

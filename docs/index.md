@@ -16,10 +16,7 @@ title: Home
 
 ## Getting Started
 
+- [Benchmarks](benchmarks.md)
 - [Installation](installation.md)
-- [Quick Start](quickstart.md)
-- [Types](types.md)
-- [General](general.md)
-- [Events](events.md)
-- [Functions](functions.md)
-- [Cleanup](cleanup.md)
+- [Quickstart](quickstart.md)
+

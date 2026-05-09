@@ -42,7 +42,7 @@ local color = Color3.new(1, 1, 1)
 Buffer object, max length 65535.
 
 ## EnumItem (1 byte)
-Roblox EnumItem. To use this type, a list of the enums used must be supplied to QuickNet beforehand using the :setEnumItems method, which must be called on both client and server.
+Roblox EnumItem. To use this type, a list of the enums used must be supplied to QuickNet beforehand using the ```:setEnumItems``` method, which must be called on both client and server.
 ```lua
 local enums = {
   Enum.EasingDirection.Out,

@@ -9,7 +9,7 @@ These benchmarks are conducted by firing the network event 1000 times per frame 
 | Jolt | 3.62 | 0.96x |  95.11
 | Packet | 10.26 | 2.62x |  41.33 
 | ByteNet | 14.66 | 3.75x | 38.66
-| QuickNet | 34.86 | 8.92x | 40.78 
+| **QuickNet** | **34.86** | **8.92x** | **40.78** 
 
 ### Booleans Test
 
@@ -19,7 +19,7 @@ These benchmarks are conducted by firing the network event 1000 times per frame 
 | Jolt | 3.39 | 0.46x |  124.53
 | Packet | 11.19 | 1.52x | 9.83 |
 | ByteNet | 12.98 | 1.76x | 9.25 |
-| QuickNet | 141.23 | 19.19x | 2.89 |
+| **QuickNet** | **141.23** | **19.19x** | **2.89** |
 
 ### Strings Test
 
@@ -29,7 +29,7 @@ These benchmarks are conducted by firing the network event 1000 times per frame 
 | Jolt | 5.19 | 0.48x | 56.22 |
 | Packet | 10.53 | 0.97x | 21.38 |
 | ByteNet | 0.21 | 0.02x | 39.83 |
-| QuickNet | 44.15 | 4.08x | 18.63 |
+| **QuickNet** | **44.15** | **4.08x** | **18.63** |
 
 ### Numbers Test
 
@@ -39,7 +39,7 @@ These benchmarks are conducted by firing the network event 1000 times per frame 
 | Jolt | 2.01 | 0.39x | 332.85 |
 | Packet | 6.20 | 1.14x | 129.53 |
 | ByteNet | 6.84 | 1.26x | 120.27 |
-| QuickNet | 60.23 | 11.05x | 125.42 |
+| **QuickNet** | **60.23** | **11.05x** | **125.42** |
 
 ### Dictionary Test
 
@@ -49,7 +49,7 @@ These benchmarks are conducted by firing the network event 1000 times per frame 
 | Jolt | 4.58 | 0.75x | 128.16 |
 | Packet | 4.72 | 0.77x | 145.78 |
 | ByteNet | 0.10 | 0.02x | 246.81 |
-| QuickNet | 22.52 | 3.68x | 142.24 |
+| **QuickNet** | **22.52** | **3.68x** | **142.24** |
 
 ### RemoteFunction Test
 Unlike the other tests, the RemoteFunction test is conducted by sending a table of 500 numbers 1000 times per frame with a response of a table of 500 booleans for every send. The metrics are recorded at the end of a 5 minute period. This test helps us observe performance degradation over an extended period of heavy load.
@@ -60,4 +60,4 @@ Unlike the other tests, the RemoteFunction test is conducted by sending a table 
 | Jolt | 3.24 | 0.99x | 307.97
 | Packet | Crash |  |
 | ByteNet | N/A | |
-| QuickNet | 58.29 | 17.77x |  159.12 |
+| **QuickNet** | **58.29** | **17.77x** |  **159.12** |

@@ -16,7 +16,7 @@ QuickNet supports all number types supported by the buffer library as well as fl
 | NumberI8    | -128         | 127           | 1 |
 | NumberI16   | -32,768      | 32,767        | 2 |
 | NumberI32   | -2,147,483,648 | 2,147,483,647 | 4 |
-| NumberF16   | -65504      | 65504        | 2 |
+| NumberF16   | -65,504      | 65,504        | 2 |
 | NumberF32   | -3.4e38      | 3.4e38        | 4 |
 | NumberF64   | -1.7e308     | 1.7e308       | 8 |
 
@@ -39,13 +39,13 @@ local color = Color3.new(1, 1, 1)
 ```
 
 ## BrickColor (2 bytes)
-A BrickColor object. If the intended color is one of the BrickColor presets, usage of BrickColor over Color3 is recommended as it saves 1 byte.
+A BrickColor object. If the intended color is one of the BrickColor presets, usage of BrickColor over Color3 is recommended as it saves 1 byte and a few buffer operations.
 
 ## Buffer (length+2 bytes)
 Buffer object, max length 65535.
 
 ## EnumItem (1 byte)
-Roblox EnumItem. To use this type, a list of the enums used must be supplied to QuickNet beforehand using the ```:setEnumItems``` method, which must be called on both client and server.
+Roblox EnumItem. To use this type, a list of the enums used must be supplied to QuickNet using the ```:setEnumItems``` method, which must be called on both client and server. The list can contain a maximum of 255 enums.
 ```lua
 local enums = {
   Enum.EasingDirection.Out,
@@ -67,7 +67,7 @@ A DateTime object serialized using the unix timestamp in miliseconds.
 A TweenInfo object. The Time and DelayTime are both serialized using FX16 (16 bit fixed point), meaning their minimum and maximum values are -327.68 and 327.67, respectively, and they have a precision of 2 decimal places. The RepeatCount is stored as a NumberI8, and the rest of the fields are bit packed into a single byte.
 
 ## Instance
-Any Roblox Instance which exists on both client and server. Since Instances cannot serialize into buffers, they are passed over the network directly. As a result, QuickNet does not usually have better performance than default RemoteEvents when sending Instances. The exception is under heavy load when QuickNet can take advantage of its call batching.
+Any Roblox Instance which exists on both client and server. Since Instances cannot serialize into buffers, they are passed over the network directly. As a result, QuickNet does not usually have better performance than default RemoteEvents when sending Instances. There are a few exceptions under heavy load when QuickNet can take advantage of its call batching.
 
 ## Any
 Any QuickNet data type. When using the Any type there is a 1 byte overhead to store the type tag.
@@ -83,13 +83,13 @@ FX stands for [fixed point](https://en.wikipedia.org/wiki/Fixed-point_arithmetic
 CFrame FX types follow the scaling discussed above for position, but not for rotation. Instead, for rotation values the full range of the integer type is mapped to [-π, π], meaning even with FX16 they retain very high precision. The CFrameF32FX16 type exists for that reason: it uses F32 for the position but FX16 for the rotation.
 
 ### Aligned CFrames
-A CFrame is considered to be aligned if its rotatation is aligned with one of the 3 axes (X, Y, or Z). In simple terms, if each rotation value is a multiple of 90 degrees then the CFrame is aligned. Under this condition, the rotation can only have 24 possible states. Therefore, instead of sending the full rotation we can do some math to map the alignment to a number id that fits in 1 byte, saving a significant amount of bandwidth as well as CPU usage. The `CFrameF32Aligned` type does exactly this. When using this type if the given CFrame is not actually aligned, the serializer will automatically snap it to the nearest aligned axis. This behavior can be quite useful, since if your "aligned" CFrame is off by some rounding errors it will still work.
+A CFrame is considered to be aligned if its rotatation is aligned with one of the 3 axes (X, Y, or Z). In simple terms, if each rotation value is a multiple of 90 degrees then the CFrame is aligned. Under this condition, the rotation can only have 24 possible states. Therefore, instead of sending the full rotation we can do some math to map the alignment to a number id that fits in 1 byte, saving a significant amount of bandwidth as well as CPU usage. The CFrameF32Aligned type does exactly this. When using this type if the given CFrame is not actually aligned, the serializer will automatically snap it to the nearest aligned axis. This behavior can be quite useful, since if your "aligned" CFrame is off by some rounding errors it will still work.
 
 | CFrame Type | Minimum Value | Maximum Value | Size (bytes) |
 |-------------|--------------|---------------| ---------------|
 | CFrameFX8    | -12.8            | 12.7           | 6 |
 | CFrameFX16   | -327.68            | 327.67       | 12 |
-| CFrameF16  | -65504          | 65504 | 12 |
+| CFrameF16  | -65,504          | 65,504 | 12 |
 | CFrameF32Aligned  | -3.4e38          | 3.4e38 | 13 |
 | CFrameF32FX16    |    -3.4e38     | 3.4e38          | 18 |
 | CFrameF32   | -3.4e38      | 3.4e38        | 24 |
@@ -99,7 +99,7 @@ A CFrame is considered to be aligned if its rotatation is aligned with one of th
 | Vector3 Type | Minimum Value | Maximum Value | Size (bytes) |
 |-------------|--------------|---------------| ---------------|
 | Vector3FX8    | -12.8            | 12.7           | 3 |
-| Vector3FX16   | -256            | 255.9921875        | 6 |
+| Vector3FX16   | -327.68           | 327.67        | 6 |
 | Vector3F16  | -65504          | 65504 | 6 |
 | Vector3F32   | -3.4e38      | 3.4e38        | 12 |
 
@@ -108,8 +108,8 @@ A CFrame is considered to be aligned if its rotatation is aligned with one of th
 | Vector2 Type | Minimum Value | Maximum Value | Size (bytes) |
 |-------------|--------------|---------------| ---------------|
 | Vector2FX8    | -12.8            | 12.7           | 2 |
-| Vector2FX16   | -256            | 255.9921875        | 4 |
-| Vector2F16  | -65504          | 65504 | 4 |
+| Vector2FX16   | -327.68            | 327.67       | 4 |
+| Vector2F16  | -65,504          | 65,504 | 4 |
 | Vector2F32   | -3.4e38      | 3.4e38        | 8 |
 
 ## Arrays
@@ -200,7 +200,7 @@ While QuickNet is highly optimized overall, it's not possible to achieve the sam
 * Take advantage of fast paths whenever possible
 * Do not use Any type and dynamic tables unless necessary
 * Avoid sending deeply nested tables
-* Avoid sending instances
+* Avoid sending instances (send names or instance IDs instead)
 * Use NumberF32 over NumberF16 in most cases
 * Send Vector3s instead of CFrames if there is no rotation
 

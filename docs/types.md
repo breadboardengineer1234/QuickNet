@@ -38,6 +38,9 @@ A Color3 object, such as
 local color = Color3.new(1, 1, 1)
 ```
 
+## BrickColor (2 bytes)
+A BrickColor object. If the intended color is one of the BrickColor presets, usage of BrickColor over Color3 is recommended as it saves 1 byte.
+
 ## Buffer (length+2 bytes)
 Buffer object, max length 65535.
 
@@ -54,6 +57,15 @@ local enums = {
 QuickNet:setEnumItems(enums)
 ```
 
+## DateTime32 (4 bytes)
+A DateTime object serialized using the unix timestamp in seconds.
+
+## DateTime64 (8 bytes)
+A DateTime object serialized using the unix timestamp in miliseconds.
+
+## TweenInfo (6 bytes)
+A TweenInfo object. The Time and DelayTime are both serialized using FX16 (16 bit fixed point), meaning their minimum and maximum values are -327.68 and 327.67, respectively, and they have a precision of 2 decimal places. The RepeatCount is stored as a NumberI8, and the rest of the fields are bit packed into a single byte.
+
 ## Instance
 Any Roblox Instance which exists on both client and server. Since Instances cannot serialize into buffers, they are passed over the network directly. As a result, QuickNet does not usually have better performance than default RemoteEvents when sending Instances. The exception is under heavy load when QuickNet can take advantage of its call batching.
 
@@ -63,14 +75,22 @@ Any QuickNet data type. When using the Any type there is a 1 byte overhead to st
 ## Optionals
 To define an optional type simply use the Any type and cast it to the desired type. For example, if we wanted an optional Color3 we would do: ```data.Any :: Color3?```
 
+## FX Types
+FX stands for [fixed point](https://en.wikipedia.org/wiki/Fixed-point_arithmetic), which involves multiplying a value by a constant. For example, for FX8 the position values are multiplied by 10 when encoding, and dividied by 10 when decoding. Fixed point allows us to represent decimal values using integers, which helps reduce the data size and decrease CPU usage compared to floating point representations. One downside of fixed point is it limits the values to a small range. Therefore, when using FX types it's important to pay attention to the bounds.
+
 ## CFrames (6-24 bytes)
-FX stands for [fixed point](https://en.wikipedia.org/wiki/Fixed-point_arithmetic) and is achieved by simply scaling the value by a constant. Doing so allows us to represent decimal values using integers at the cost of range. For example, for FX8 the position values are multiplied by 10 when encoding, and dividied by 10 when decoding. For rotation values the full range of the integer type is mapped to [-pi, pi], meaning even with FX16 they retain very high precision. The CFrameF32FX16 type exists for that reason: it uses F32 for the position but FX16 for the rotation.
+### FX Rotations
+CFrame FX types follow the scaling discussed above for position, but not for rotation. Instead, for rotation values the full range of the integer type is mapped to [-π, π], meaning even with FX16 they retain very high precision. The CFrameF32FX16 type exists for that reason: it uses F32 for the position but FX16 for the rotation.
+
+### Aligned CFrames
+A CFrame is considered to be aligned if its rotatation is aligned with one of the 3 axes (X, Y, or Z). In simple terms, if each rotation value is a multiple of 90 degrees then the CFrame is aligned. Under this condition, the rotation can only have 24 possible states. Therefore, instead of sending the full rotation we can do some math to map the alignment to a number id that fits in 1 byte, saving a significant amount of bandwidth as well as CPU usage. The `CFrameF32Aligned` type does exactly this. When using this type if the given CFrame is not actually aligned, the serializer will automatically snap it to the nearest aligned axis. This behavior can be quite useful as if your "aligned" CFrame is off by some rounding errors it will still work.
 
 | CFrame Type | Minimum Value | Maximum Value | Size (bytes) |
 |-------------|--------------|---------------| ---------------|
 | CFrameFX8    | -12.8            | 12.7           | 6 |
-| CFrameFX16   | -256            | 255.9921875        | 12 |
+| CFrameFX16   | -327.68            | 327.67       | 12 |
 | CFrameF16  | -65504          | 65504 | 12 |
+| CFrameF32Aligned  | -3.4e38          | 3.4e38 | 13 |
 | CFrameF32FX16    |    -3.4e38     | 3.4e38          | 18 |
 | CFrameF32   | -3.4e38      | 3.4e38        | 24 |
 

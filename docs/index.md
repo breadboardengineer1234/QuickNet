@@ -21,7 +21,7 @@ title: Home
 - [Quickstart](quickstart.md)
 
 ## Updates
-### v0.2.0
+### v0.2.0 (5/10/26)
 * Added unreliable support, simply call :Unreliable when registering an event
 * Fixed a bug where sending a table throws an error when using the Any type
 * Added new serialized types: BrickColor, DateTime32, DateTime64, CFrameF32Aligned, TweenInfo
@@ -31,5 +31,5 @@ title: Home
 * FX16 scale factor changed from 128 → 100
 * Adjusted some other internal parameters
 
-### v0.1.0
+### v0.1.0 (5/7/26)
 * Release

@@ -39,7 +39,7 @@ local conn = myEvent.OnServerEvent:Once(function(player, num, str, bool)
 end)
 ```
 
-### ``:Wait(): A...``
+### ``:Wait(): (Player, A...)``
 Yields the caller's thread until the next ``.OnServerEvent`` signal, at which point it returns the signal's arguments.
 ```lua
 local player, num, str, bool = myEvent.OnServerEvent:Wait()

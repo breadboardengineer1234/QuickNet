@@ -34,6 +34,9 @@ QuickNet:setMaxPayloadSize(20000)
 ## ``NetworkEvent``
 ### ``:Unreliable(): NetworkEvent``
 Call this method to define an unreliable event. Once an unreliable event has been defined it cannot be reverted. Unreliable events do not support call-response. Calling `:Response` on an unreliable event will throw an error, and vice versa.
+```lua
+local myUnreliable = QuickNet:register("MyUnreliable", data.CFrameF32FX16):Unreliable()
+```
 
 ### ``:Response(...: B...): NetworkFunction``
 When registering a network event, this method can be chained to create a network function. It accepts the types of the response values as input and returns a ``NetworkFunction`` object.

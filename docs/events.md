@@ -39,8 +39,8 @@ local conn = myEvent.OnServerEvent:Once(function(player, num, str, bool)
 end)
 ```
 
-### ``:Wait()``
-Yields the caller's thread until the next ``.OnServerEvent`` signal.
+### ``:Wait(): A...``
+Yields the caller's thread until the next ``.OnServerEvent`` signal, at which point it returns the signal's arguments.
 ```lua
 myEvent.OnServerEvent:Wait()
 print("Fired")
@@ -106,8 +106,8 @@ local conn = myEvent.OnClientEvent:Once(function(player, num, str, bool)
 end)
 ```
 
-### ``:Wait()``
-Yields the caller's thread until the next ``.OnClientEvent`` signal.
+### ``:Wait(): A...``
+Yields the caller's thread until the next ``.OnClientEvent`` signal, at which point it returns the signal's arguments.
 ```lua
 myEvent.OnClientEvent:Wait()
 print("Fired")

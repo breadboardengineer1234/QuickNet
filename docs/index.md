@@ -20,3 +20,16 @@ title: Home
 - [Installation](installation.md)
 - [Quickstart](quickstart.md)
 
+## Updates
+### v0.2.0
+* Added unreliable support, simply call :Unreliable when registering an event
+* Fixed a bug where sending a table throws an error when using the Any type
+* Added new serialized types: BrickColor, DateTime32, DateTime64, CFrameF32Aligned, TweenInfo
+* Added :Once method
+* Fixed an issue where calling :Wait doesn’t return the arguments
+* Optimized connection objects: no longer creates new closures for each connection
+* FX16 scale factor changed from 128 → 100
+* Adjusted some other internal parameters
+
+### v0.1.0
+* Release

@@ -95,7 +95,7 @@ local conn = myEvent.OnClientEvent:ConnectAsync(function(num, str, bool)
 end)
 ```
 
-### ``:Once(callback: (Player, A...) -> ()): QuickNetConnection``
+### ``:Once(callback: (A...) -> ()): QuickNetConnection``
 Connects a listener to the event one time. The connection object is cleaned up immediately before the callback runs. This method runs the listener asynchronously.
 ```lua
 local conn = myEvent.OnClientEvent:Once(function(num, str, bool)

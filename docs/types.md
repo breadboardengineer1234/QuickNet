@@ -76,7 +76,7 @@ Any QuickNet data type. When using the Any type there is a 1 byte overhead to st
 To define an optional type simply use the Any type and cast it to the desired type. For example, if we wanted an optional Color3 we would do: ```data.Any :: Color3?```
 
 ## FX Types
-FX stands for [fixed point](https://en.wikipedia.org/wiki/Fixed-point_arithmetic), which involves multiplying a value by a constant. For example, for FX8 the position values are multiplied by 10 when encoding, and dividied by 10 when decoding. Fixed point allows us to represent decimal values using integers, which helps reduce the data size and decrease CPU usage compared to floating point representations. One downside of fixed point is it limits the values to a small range. Therefore, when using FX types it's important to pay attention to the bounds.
+FX stands for [fixed point](https://en.wikipedia.org/wiki/Fixed-point_arithmetic), which involves multiplying a value by a constant. For example, for FX8 the value is multiplied by 10 when encoding and dividied by 10 when decoding. For FX16, the value is multipled by 100 when encoding and divided by the same amount when decoding. Fixed point allows us to represent decimal values using integers, which helps reduce the data size and decrease CPU usage compared to floating point representations. One downside of fixed point is it limits the values to a small range. Therefore, when using FX types it's important to pay attention to the bounds.
 
 ## CFrames (6-24 bytes)
 ### FX Rotations

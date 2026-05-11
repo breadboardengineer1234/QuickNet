@@ -27,6 +27,18 @@ local conn = myEvent.OnServerEvent:ConnectAsync(function(player, num, str, bool)
   print(bool)
 end)
 ```
+
+### ``:Once(callback: (Player, A...) -> ()): QuickNetConnection``
+Connects a listener to the event one time. The connection object is cleaned up immediately before the callback runs. This method runs the listener asynchronously.
+```lua
+local conn = myEvent.OnServerEvent:Once(function(player, num, str, bool)
+  print(num)
+  print(str)
+  task.wait(2)
+  print(bool)
+end)
+```
+
 ### ``:Wait()``
 Yields the caller's thread until the next ``.OnServerEvent`` signal.
 ```lua
@@ -79,6 +91,17 @@ local conn = myEvent.OnClientEvent:ConnectAsync(function(num, str, bool)
   print(num)
   print(str)
   task.wait(5)
+  print(bool)
+end)
+```
+
+### ``:Once(callback: (Player, A...) -> ()): QuickNetConnection``
+Connects a listener to the event one time. The connection object is cleaned up immediately before the callback runs. This method runs the listener asynchronously.
+```lua
+local conn = myEvent.OnClientEvent:Once(function(player, num, str, bool)
+  print(num)
+  print(str)
+  task.wait(2)
   print(bool)
 end)
 ```

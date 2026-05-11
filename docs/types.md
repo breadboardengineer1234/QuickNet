@@ -100,7 +100,7 @@ A CFrame is considered to be aligned if its rotatation is aligned with one of th
 |-------------|--------------|---------------| ---------------|
 | Vector3FX8    | -12.8            | 12.7           | 3 |
 | Vector3FX16   | -327.68           | 327.67        | 6 |
-| Vector3F16  | -65504          | 65504 | 6 |
+| Vector3F16  | -65,504          | 65,504 | 6 |
 | Vector3F32   | -3.4e38      | 3.4e38        | 12 |
 
 ## Vector2 (2-8 bytes)

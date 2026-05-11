@@ -153,7 +153,6 @@ end
 local function dictDynamic(): {[any]: any}
 	local schema = {
 		Enums.DictDynamic,
-		getDictId(),
 	}
 	return schema
 end

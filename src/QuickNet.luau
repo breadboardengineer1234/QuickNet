@@ -1,6 +1,6 @@
 --!optimize 2
 
---[QuickNet] v0.1.0
+--[QuickNet] v0.2.0
 --author: u5eful
 
 --services--
@@ -17,7 +17,7 @@ local Types = require(script.Types)
 --config--
 local SOURCE = "[QuickNet]"
 local DEBUG_MODE = true --set to false for production
-local RATE_LIMIT = {Max = 120, Time = 1}
+local RATE_LIMIT = {Max = 120, Time = 1} --adjust this
 local MAX_CALLS_PER_FRAME = 100000 --decrease this
 local INVOKE_TIMEOUT = 10
 local MAX_INVOKE_TIMEOUT = 60
@@ -27,14 +27,16 @@ local ERROR_MSGS = {
 	MaxArgs = "Number of arguments exceeds max",
 	InvalidInternalArg1 = "invalid internal argument 1",
 	InvalidInternalArg2 = "invalid internal argument 2",
+	Unreliable1 = " Network function cannot be unreliable",
+	Response1 = " Unreliable event does not support response",
 }
-local MAX_REQ_ID = 65536
-local CLIENT_TEMP_BUFF_SIZE = 20000000
-local SERVER_TEMP_BUFF_SIZE = 2000000
+local MAX_REQ_ID_RANGE = 65536
+local CLIENT_TEMP_BUFF_SIZE = 20000000 --adjust this
+local SERVER_TEMP_BUFF_SIZE = 2000000 --adjust this
 local REMOTE_EVENT = 0
 local REMOTE_FUNCTION = 1
 local INVOKE_FAIL_ID = 0
-local TBL_POOL_SIZE = 200
+local TBL_POOL_SIZE = 100
 
 --types--
 type Signal<T...> = Types.Signal<T...>
@@ -44,6 +46,16 @@ type NetworkInfo<A..., B...> = Types.NetworkInfo<A..., B...>
 export type QuickNetConnection = Types.QuickNetConnection
 type SchemaArg = Types.SchemaArg
 type Queue = Types.Queue
+
+--helpers--
+local function getClientQueue(): Queue
+	return {
+		QueueSize = 0,
+		ByteSize = 0,
+		TempBuffer = buffer.create(CLIENT_TEMP_BUFF_SIZE),
+		Instances = {},
+	}
+end
 
 --variables--
 local isServer = RunService:IsServer()
@@ -63,17 +75,16 @@ local globalEventId: number = 0
 local buffersPool: {buffer} = {}
 local buffersCache: {[number]: {buffer}} = {}
 local buffersCacheSize = 0
-local clientQueue: Queue? 
+local clientQueue: Queue?
+local clientQueueUnr: Queue?
 if not isServer then
-	clientQueue = {
-		QueueSize = 0,
-		ByteSize = 0,
-		TempBuffer = buffer.create(CLIENT_TEMP_BUFF_SIZE),
-		Instances = {},
-	}
+	clientQueue = getClientQueue()
+	clientQueueUnr = getClientQueue()
 end
 local serverQueue: {[Player]: Queue} = {}
+local serverQueueUnr: {[Player]: Queue} = {}
 local internalRemote: RemoteEvent
+local internalUnreliable: UnreliableRemoteEvent
 local maxPayloadSize = MAX_PAYLOAD_SIZE
 
 local tablePool = table.create(TBL_POOL_SIZE)
@@ -116,6 +127,18 @@ local function getRemote(name: string): RemoteEvent
 		remote = script:WaitForChild(name)
 	end
 	return remote
+end
+
+local function getUnreliable(name: string): UnreliableRemoteEvent
+	local unreliable
+	if isServer then
+		unreliable = Instance.new("UnreliableRemoteEvent")
+		unreliable.Name = name
+		unreliable.Parent = script
+	else
+		unreliable = script:WaitForChild(name)
+	end
+	return unreliable
 end
 
 local function getBuffer(): buffer
@@ -169,25 +192,53 @@ end
 end
 
 @native local function processQueueClient()
-	if clientQueue.QueueSize < 1 then
-		return
+	if clientQueueUnr.QueueSize > 0 then --unreliable
+		local buff = getBatchedBuffer(clientQueueUnr)
+		local inst = clientQueueUnr.Instances
+		local hasInst = #inst > 0
+		if hasInst then
+			internalUnreliable:FireServer(buff, inst)
+		else
+			internalUnreliable:FireServer(buff)
+		end
+		flushQueue(clientQueueUnr, hasInst)
 	end
-	local buff = getBatchedBuffer(clientQueue)
-	local inst = clientQueue.Instances
-	local hasInst = #inst > 0
-	if hasInst then
+	
+	if clientQueue.QueueSize > 0 then --normal
+		local buff = getBatchedBuffer(clientQueue)
+		local inst = clientQueue.Instances
+		local hasInst = #inst > 0
+		if hasInst then
 		internalRemote:FireServer(buff, inst)
-	else
+		else
 		internalRemote:FireServer(buff)
-	end
-	flushQueue(clientQueue, hasInst)		
+		end
+		flushQueue(clientQueue, hasInst)
+	end		
 end
 
 @native local function processQueueServer()
-	for player, queue in serverQueue do
+	for player, queue in serverQueueUnr do --unreliable
 		if not queue or queue.QueueSize < 1 then
 			continue
 		end
+
+		local buff = getBatchedBuffer(queue)
+		local inst = queue.Instances
+		local hasInst = #inst > 0
+		if hasInst then
+			internalUnreliable:FireClient(player, buff, inst)
+		else
+			internalUnreliable:FireClient(player, buff)
+		end
+		flushQueue(queue, hasInst)
+	end
+	
+	for player, queue in serverQueue do --normal
+		if not queue or queue.QueueSize < 1 then
+			continue
+		end
+
 		local buff = getBatchedBuffer(queue)
 		local inst = queue.Instances
 		local hasInst = #inst > 0
@@ -368,14 +419,34 @@ local function addWait(waitThreads: {thread}): thread
 	return coroutine.yield()
 end
 
-@native local function resolveWaits(waitThreads: {thread})
+@native local function resolveWaits(waitThreads: {thread}, ...)
 	for _, thread in waitThreads do
 		if coroutine.status(thread) ~= "suspended" then
 			continue
 		end
-		coroutine.resume(thread)
+		coroutine.resume(thread, ...)
 	end
 	recycleTable(waitThreads)
+end
+
+@native local function disconnect(self: QuickNetConnection)
+	if not self.Connected then return end
+	self.Connected = false
+	self._callbacks[self] = nil
+	self._callbacks = nil
+end
+
+@native local function getNetworkConnection(callbacks: {[QuickNetConnection]: (...any) -> (...any)}, 
+	callback: (...any) -> (...any)): QuickNetConnection
+	local networkConn = {
+		Connected = true,
+		Disconnect = disconnect,
+		Destroy = disconnect,
+		_callbacks = callbacks,
+	} :: QuickNetConnection
+
+	callbacks[networkConn] = callback
+	return networkConn
 end
 
 @native local function remoteListenerServer(player: Player, buff: buffer, inst: {Instance}?)
@@ -412,11 +483,6 @@ end
 			warnMsg("unknown event id "..id..", dropping calls")
 			return
 		end
-		local waitThreads = info.WaitThreads
-		if #waitThreads > 0 then
-			info.WaitThreads = getTable()
-			resolveWaits(waitThreads)
-		end
 		
 		local networkType = info.NetworkType
 		local isRemoteFunction = networkType == REMOTE_FUNCTION
@@ -437,6 +503,12 @@ end
 				queueEvent(serverQueue[player], nil, nil, INVOKE_FAIL_ID, reqId, networkType)
 			end
 			continue
+		end
+		
+		local waitThreads = info.WaitThreads
+		if #waitThreads > 0 then
+			info.WaitThreads = getTable()
+			resolveWaits(waitThreads, player, fastUnpack(args, numArgs))
 		end
 
 		if isRemoteFunction then
@@ -466,7 +538,20 @@ end
 			local success, err = pcall(callback, player, fastUnpack(args, numArgs))
 			if not success then warnMsg(err, true) end
 		end
-
+		
+		if info.NumOnceCallbacks > 0 then
+			local onces = info.OnceCallbacks
+			info.NumOnceCallbacks = 0
+			info.OnceCallbacks = getTable()
+			
+			for conn, callback in onces do
+				disconnect(conn)
+				local thread = getThread()
+				coroutine.resume(thread, callback, thread, nil, nil, nil, player, fastUnpack(args, numArgs))
+			end
+			recycleTable(onces)
+		end
+		
 		for _, callback in info.AsyncCallbacks do
 			local thread = getThread()
 			coroutine.resume(thread, callback, thread, nil, nil, nil, player, fastUnpack(args, numArgs))
@@ -519,11 +604,6 @@ end
 			return
 		end
 		
-		local waitThreads = info.WaitThreads
-		if #waitThreads > 0 then
-			info.WaitThreads = getTable()
-			resolveWaits(waitThreads)
-		end
 		local networkType = info.NetworkType
 		local isRemoteFunction = networkType == REMOTE_FUNCTION
 		local schema = networkType == REMOTE_FUNCTION and info.ResponseSchema or info.SendSchema
@@ -536,6 +616,13 @@ end
 		
 		local args, bytesRead = getArgs(buff, offset, schema, inst)
 		offset += bytesRead
+		
+		local waitThreads = info.WaitThreads
+		if #waitThreads > 0 then
+			info.WaitThreads = getTable()
+			resolveWaits(waitThreads, fastUnpack(args, numArgs))
+		end
+		
 		if isRemoteFunction then
 			resumeInvokeThread(reqId, true, fastUnpack(args, numArgs))
 			continue
@@ -544,7 +631,20 @@ end
 		for _, callback in info.Callbacks do
 			local success, err = pcall(callback, fastUnpack(args, numArgs))
 			if not success then warnMsg(err, true) end
-		end	
+		end
+		
+		if info.NumOnceCallbacks > 0 then
+			local onces = info.OnceCallbacks
+			info.NumOnceCallbacks = 0
+			info.OnceCallbacks = getTable()
+
+			for conn, callback in onces do
+				disconnect(conn)
+				local thread = getThread()
+				coroutine.resume(thread, callback, thread, nil, nil, nil, fastUnpack(args, numArgs))
+			end
+			recycleTable(onces)
+		end
 
 		for _, callback in info.AsyncCallbacks do
 			local thread = getThread()
@@ -560,30 +660,18 @@ end
 	end
 end
 
-local function getNetworkConnection(callbacks: {[QuickNetConnection]: (...any) -> (...any)}, 
-	callback: (...any) -> (...any)): QuickNetConnection
-	local networkConn = {} :: QuickNetConnection
-	networkConn.Connected = true
-
-	function networkConn:Disconnect()
-		self.Connected = false
-		callbacks[self] = nil
-	end
-
-	function networkConn:Destroy() --janitor compatibility
-		self.Connected = false
-		callbacks[self] = nil
-	end
-	callbacks[networkConn] = callback
-	return networkConn
-end
-
 local function createObjServer<A..., B...>(info: NetworkInfo<A..., B...>): NetworkEvent<A...>
 	local Object = {}
 	Object.OnServerEvent = {}
 
 	local callbacks = info.Callbacks
 	local asyncCallbacks = info.AsyncCallbacks
+	local name = info.Name	
+	local schema = info.SendSchema
+	local actionId = info.Id
+	local networkType = info.NetworkType
+	local queue = serverQueue
+	local isUnreliable = false
 	
 	function Object:SetRateLimit(max: number, timeWindow: number)
 		info.RateLimit.Max = max
@@ -591,10 +679,24 @@ local function createObjServer<A..., B...>(info: NetworkInfo<A..., B...>): Netwo
 		return Object
 	end
 	
+	function Object:Unreliable(): NetworkEvent<A...>
+		if networkType == REMOTE_FUNCTION then
+			error(SOURCE..ERROR_MSGS.Unreliable1, 2)
+			return
+		end
+		queue = serverQueueUnr
+		isUnreliable = true
+		return Object
+	end
+	
 	function Object:Response(...: B...): NetworkFunction<A..., B...>
+		if isUnreliable then
+			error(SOURCE..ERROR_MSGS.Response1, 2)
+		end
 		Object.OnServerInvoke = nil
 		Object.OnServerInvokeAsync = nil
 		info.ResponseSchema = getSchema(...)
+		networkType = REMOTE_FUNCTION
 		info.NetworkType = REMOTE_FUNCTION
 		
 		function Object:SetResponseTimeout(val: number): NetworkFunction<A..., B...>
@@ -612,38 +714,37 @@ local function createObjServer<A..., B...>(info: NetworkInfo<A..., B...>): Netwo
 		return getNetworkConnection(asyncCallbacks, callback)
 	end
 	
+	function Object.OnServerEvent:Once(callback: (player: Player, A...) -> ()): QuickNetConnection
+		info.NumOnceCallbacks += 1
+		return getNetworkConnection(info.OnceCallbacks, callback)
+	end
+	
 	function Object.OnServerEvent:Wait()
 		return addWait(info.WaitThreads)
 	end
 	
-	local name = info.Name	
-	local schema = info.SendSchema
-	local actionId = info.Id
-	local networkType = info.NetworkType
-	
 	@native function Object:FireClient(player: Player, ...: A...)
-		queueEvent(serverQueue[player], schema, {...}, actionId, 0, networkType)
+		queueEvent(queue[player], schema, {...}, actionId, 0, networkType)
 	end
 	
 	function Object:FireClients(players: {Player}, ...: A...)
 		for _, player in players do
-			queueEvent(serverQueue[player], schema, {...}, actionId, 0, networkType)
+			queueEvent(queue[player], schema, {...}, actionId, 0, networkType)
 		end
 	end
 
 	@native function Object:FireAllClients(...: A...)
 		for _, player in Players:GetPlayers() do
-			queueEvent(serverQueue[player], schema, {...}, actionId, 0, networkType)
+			queueEvent(queue[player], schema, {...}, actionId, 0, networkType)
 		end
 	end
 
 	function Object:FireAllExcept(excludePlayer: Player, ...: A...)
 		for _, player in Players:GetPlayers() do
 			if player == excludePlayer then continue end 
-			queueEvent(serverQueue[player], schema, {...}, actionId, 0, networkType)
+			queueEvent(queue[player], schema, {...}, actionId, 0, networkType)
 		end
 	end
-
 	return Object
 end
 
@@ -668,13 +769,30 @@ local function createObjClient<A..., B...>(info: NetworkInfo<A..., B...>): Netwo
 	local callbacks = info.Callbacks
 	local asyncCallbacks = info.AsyncCallbacks
 	local networkType = info.NetworkType
+	local queue = clientQueue
+	local isUnreliable = false
+	
+	function Object:Unreliable(): NetworkEvent<A...>
+		if networkType == REMOTE_FUNCTION then
+			error(SOURCE..ERROR_MSGS.Unreliable1, 2)
+			return
+		end
+		isUnreliable = true
+		queue = clientQueueUnr
+		return Object
+	end
 	
 	function Object:Response(...: B...): NetworkFunction<A..., B...>
+		if isUnreliable then
+			error(SOURCE..ERROR_MSGS.Response1, 2)
+			return
+		end
 		info.ResponseSchema = getSchema(...)
 		info.NetworkType = REMOTE_FUNCTION
+		networkType = REMOTE_FUNCTION
 		
 		@native function Object:InvokeServer(...: A...): B...
-			globalReqId = (globalReqId + 1) % MAX_REQ_ID
+			globalReqId = (globalReqId + 1) % MAX_REQ_ID_RANGE
 			local reqId = globalReqId
 			resumeInvokeThread(reqId, true, nil)
 
@@ -706,12 +824,17 @@ local function createObjClient<A..., B...>(info: NetworkInfo<A..., B...>): Netwo
 		return getNetworkConnection(asyncCallbacks, callback)
 	end
 	
+	function Object.OnClientEvent:Once(callback: (player: Player, A...) -> ()): QuickNetConnection
+		info.NumOnceCallbacks += 1
+		return getNetworkConnection(info.OnceCallbacks, callback)
+	end
+	
 	function Object.OnClientEvent:Wait()
 		return addWait(info.WaitThreads)
 	end
 
 	@native function Object:FireServer(...: A...)
-		queueEvent(clientQueue, sendSchema, {...}, actionId, 0, networkType)
+		queueEvent(queue, sendSchema, {...}, actionId, 0, networkType)
 	end
 	return Object
 end
@@ -724,16 +847,22 @@ local function createNetworkObject<A..., B...>(info: NetworkInfo<A..., B...>): N
 	end
 end
 
+local function getServerQueue(): Queue
+	return {
+		QueueSize = 0,
+		ByteSize = 0,
+		TempBuffer = getBuffer(),
+		Instances = {},
+	}
+end
+
 local function start()
 	internalRemote = getRemote("QuickNetRemote")
+	internalUnreliable = getUnreliable("QuickNetUnreliable")
 	if isServer then
 		local function initPlayer(player: Player)
-			serverQueue[player] = {
-				QueueSize = 0, 
-				ByteSize = 0, 
-				TempBuffer = getBuffer(),
-				Instances = {},
-			}
+			serverQueue[player] = getServerQueue()
+			serverQueueUnr[player] = getServerQueue()
 			rateLimitInfo[player] = {}
 		end
 
@@ -744,16 +873,21 @@ local function start()
 
 		Players.PlayerRemoving:Connect(function(player)
 			local queue = serverQueue[player]
+			local queueUnr = serverQueueUnr[player]
 			recycleBuffer(queue.TempBuffer)
+			recycleBuffer(queueUnr.TempBuffer)
 			serverQueue[player] = nil
+			queueUnr[player] = nil
 			rateLimitInfo[player] = nil
 		end)
 		
 		RunService.PostSimulation:Connect(processQueueServer)
 		internalRemote.OnServerEvent:Connect(remoteListenerServerPcall)
+		internalUnreliable.OnServerEvent:Connect(remoteListenerServerPcall)
 	else
 		RunService.PostSimulation:Connect(processQueueClient)
 		internalRemote.OnClientEvent:Connect(remoteListenerClientPcall)
+		internalUnreliable.OnClientEvent:Connect(remoteListenerClientPcall)
 	end
 end
 
@@ -778,6 +912,16 @@ function Net:setMaxPayloadSize(size: number)
 	maxPayloadSize = size
 end
 
+--[[
+Example usage:
+local data = QuickNet.Data
+
+local myEvent = QuickNet:register("EventName", data.NumberU8, data.String)
+
+local myUnreliable = QuickNet:register("UnreliableName", data.CFrameF32):Unreliable()
+
+local myFunction = QuickNet:register("FunctionName", data.Color3):Response(data.Boolean)
+]]
 function Net:register<A..., B...>(name: string, ...: A...): NetworkEvent<A...>
 	if namesRegistered[name] then
 		errorMsg(name.." already exists (names must be unique)")
@@ -793,6 +937,8 @@ function Net:register<A..., B...>(name: string, ...: A...): NetworkEvent<A...>
 	info.SendSchema = getSchema(...)
 	info.Callbacks = {}
 	info.AsyncCallbacks = {}
+	info.OnceCallbacks = {}
+	info.NumOnceCallbacks = 0
 	info.WaitThreads = {}
 	info.ResponseTimeout = INVOKE_TIMEOUT
 	local object = createNetworkObject(info)

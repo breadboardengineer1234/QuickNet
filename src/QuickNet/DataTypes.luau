@@ -15,6 +15,7 @@ local dataTypes = {
 	CFrameFX8 = Enums.CFrameFX8 :: CFrame,
 	CFrameFX16 = Enums.CFrameFX16 :: CFrame,
 	CFrameF16 = Enums.CFrameF16 :: CFrame,
+	CFrameF32Aligned = Enums.CFrameF32Aligned :: CFrame,
 	CFrameF32FX16 = Enums.CFrameF32FX16 :: CFrame,
 	CFrameF32 = Enums.CFrameF32 :: CFrame,
 	
@@ -34,11 +35,15 @@ local dataTypes = {
 	String = Enums.String :: string,
 	StringLong = Enums.StringLong :: string,
 	Color3 = Enums.Color3 :: Color3,
+	BrickColor = Enums.BrickColor :: BrickColor,
 	Boolean = Enums.Boolean :: boolean,
 	Nil = Enums.Nil :: any,
 	Buffer = Enums.Buffer :: buffer,
 	EnumItem = Enums.EnumItem :: EnumItem,
 	Instance = Enums.Instance :: Instance,
+	DateTime32 = Enums.DateTime32 :: DateTime,
+	DateTime64 = Enums.DateTime64 :: DateTime,
+	TweenInfo = Enums.TweenInfo :: TweenInfo,
 	
 	--custom
 	Any = Enums.Any :: any,

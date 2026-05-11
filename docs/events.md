@@ -42,7 +42,7 @@ end)
 ### ``:Wait(): A...``
 Yields the caller's thread until the next ``.OnServerEvent`` signal, at which point it returns the signal's arguments.
 ```lua
-myEvent.OnServerEvent:Wait()
+local player, num, str, bool = myEvent.OnServerEvent:Wait()
 print("Fired")
 ```
 
@@ -98,7 +98,7 @@ end)
 ### ``:Once(callback: (Player, A...) -> ()): QuickNetConnection``
 Connects a listener to the event one time. The connection object is cleaned up immediately before the callback runs. This method runs the listener asynchronously.
 ```lua
-local conn = myEvent.OnClientEvent:Once(function(player, num, str, bool)
+local conn = myEvent.OnClientEvent:Once(function(num, str, bool)
   print(num)
   print(str)
   task.wait(2)
@@ -109,7 +109,7 @@ end)
 ### ``:Wait(): A...``
 Yields the caller's thread until the next ``.OnClientEvent`` signal, at which point it returns the signal's arguments.
 ```lua
-myEvent.OnClientEvent:Wait()
+local num, str, bool = myEvent.OnClientEvent:Wait()
 print("Fired")
 ```
 

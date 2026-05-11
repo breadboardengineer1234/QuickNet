@@ -9,7 +9,7 @@ local MAX_STR_LEN = 255
 local MAX_BUFFER_LEN = 65535
 local FX8_SCALE = 10
 local FX8_ROT_SCALE = 40.42
-local FX16_SCALE = 128
+local FX16_SCALE = 100
 local FX16_ROT_SCALE = 10430
 local DYNAMIC_DEFAULTS = {
 	number = Enums.NumberF64,
@@ -19,12 +19,15 @@ local DYNAMIC_DEFAULTS = {
 	["nil"] = Enums.Nil,
 	string = Enums.String,
 	Color3 = Enums.Color3,
+	BrickColor = Enums.BrickColor,
 	boolean = Enums.Boolean,
 	table = Enums.DictDynamic,
 	buffer = Enums.Buffer,
 	Instance = Enums.Instance,
+	DateTime = Enums.DateTime64,
+	TweenInfo = Enums.TweenInfo,
 }
-local TBL_POOL_SIZE = 200
+local TBL_POOL_SIZE = 100
 
 local writeu8 = buffer.writeu8 
 local writeu16 = buffer.writeu16 
@@ -261,6 +264,90 @@ end
 	return 12
 end
 
+@native local function axisId(x: number, y: number, z: number): number
+	local ax = math.abs(x)
+	local ay = math.abs(y)
+	local az = math.abs(z)
+
+	if ax >= ay and ax >= az then
+		return x > 0 and 0 or 1
+	elseif ay >= az then
+		return y > 0 and 2 or 3
+	else
+		return z > 0 and 4 or 5
+	end
+end
+
+local xAxis = Vector3.new(1, 0, 0)
+local yAxis = Vector3.new(0, 1, 0)
+local zAxis = Vector3.new(0, 0, 1)
+
+local alignIdsToCFrames = {
+	[0] = CFrame.identity,
+	[1] = CFrame.identity,
+	[2] = CFrame.fromMatrix(Vector3.zero, xAxis, yAxis),
+	[3] = CFrame.fromMatrix(Vector3.zero, xAxis, -yAxis),
+	[4] = CFrame.fromMatrix(Vector3.zero, xAxis, zAxis),
+	[5] = CFrame.fromMatrix(Vector3.zero, xAxis, -zAxis),
+	
+	[6] = CFrame.identity,
+	[7] = CFrame.identity,
+	[8] = CFrame.fromMatrix(Vector3.zero, -xAxis, yAxis),
+	[9] = CFrame.fromMatrix(Vector3.zero, -xAxis, -yAxis),
+	[10] = CFrame.fromMatrix(Vector3.zero, -xAxis, zAxis),
+	[11] = CFrame.fromMatrix(Vector3.zero, -xAxis, -zAxis),
+	
+	[12] = CFrame.fromMatrix(Vector3.zero, yAxis, xAxis),
+	[13] = CFrame.fromMatrix(Vector3.zero, yAxis, -xAxis),
+	[14] = CFrame.identity,
+	[15] = CFrame.identity,
+	[16] = CFrame.fromMatrix(Vector3.zero, yAxis, zAxis),
+	[17] = CFrame.fromMatrix(Vector3.zero, yAxis, -zAxis),
+	
+	[18] = CFrame.fromMatrix(Vector3.zero, -yAxis, xAxis),
+	[19] = CFrame.fromMatrix(Vector3.zero, -yAxis, -xAxis),
+	[20] = CFrame.identity,
+	[21] = CFrame.identity,
+	[22] = CFrame.fromMatrix(Vector3.zero, -yAxis, zAxis),
+	[23] = CFrame.fromMatrix(Vector3.zero, -yAxis, -zAxis),
+	
+	[24] = CFrame.fromMatrix(Vector3.zero, zAxis, xAxis),
+	[25] = CFrame.fromMatrix(Vector3.zero, zAxis, -xAxis),
+	[26] = CFrame.fromMatrix(Vector3.zero, zAxis, yAxis),
+	[27] = CFrame.fromMatrix(Vector3.zero, zAxis, -yAxis),
+	[28] = CFrame.identity,
+	[29] = CFrame.identity,
+	
+	[30] = CFrame.fromMatrix(Vector3.zero, -zAxis, xAxis),
+	[31] = CFrame.fromMatrix(Vector3.zero, -zAxis, -xAxis),
+	[32] = CFrame.fromMatrix(Vector3.zero, -zAxis, yAxis),
+	[33] = CFrame.fromMatrix(Vector3.zero, -zAxis, -yAxis),
+	[34] = CFrame.identity,
+	[35] = CFrame.identity,	
+}
+
+@native local function encodeCFrameF32Aligned(buff: buffer, offset: number, arg: SchemaArg, value: CFrame): number
+	local x, y, z,
+	r00, r01, r02,
+	r10, r11, r12,
+	r20, r21, r22 = value:GetComponents()
+	local right = axisId(r00, r10, r20)
+	local up = axisId(r01, r11, r21)
+	writef32(buff, offset, x)
+	writef32(buff, offset + 4, y)
+	writef32(buff, offset + 8, z)
+	writeu8(buff, offset + 12, right * 6 + up)
+	return 13
+end
+
+@native local function decodeCFrameF32Aligned(buff: buffer, offset: number, arg: SchemaArg): (CFrame, number)
+	local x = readf32(buff, offset)
+	local y = readf32(buff, offset + 4)
+	local z = readf32(buff, offset + 8)
+	local alignId = readu8(buff, offset + 12)
+	return alignIdsToCFrames[alignId] + Vector3.new(x, y, z), 13
+end
+
 @native local function encodeCFrameF32FX16(buff: buffer, offset: number, arg: SchemaArg, value: CFrame): number
 	local pos = value.Position
 	local x, y, z = value:ToEulerAnglesXYZ()
@@ -480,6 +567,15 @@ end
 	return Color3.new(r / 255, g / 255, b / 255), 3
 end
 
+@native local function encodeBrickColor(buff: buffer, offset: number, arg: SchemaArg, value: BrickColor): number
+	writeu16(buff, offset, value.Number)
+	return 2
+end
+
+@native local function decodeBrickColor(buff: buffer, offset: number, arg: SchemaArg): (BrickColor, number)
+	return BrickColor.new(readu16(buff, offset)), 2
+end
+
 @native local function encodeBool(buff: buffer, offset: number, arg: SchemaArg, value: boolean): number
 	writeu8(buff, offset, value and 1 or 0)
 	return 1
@@ -513,6 +609,89 @@ end
 	local newBuff = buffer.create(len)
 	bufferCopy(newBuff, 0, buff, offset + 2, len)
 	return newBuff, len + 2
+end
+
+@native local function encodeDateTime32(buff: buffer, offset: number, arg: SchemaArg, value: DateTime): number
+	writeu32(buff, offset, value.UnixTimestamp)
+	return 4
+end
+
+@native local function decodeDateTime32(buff: buffer, offset: number, arg: SchemaArg): (DateTime, number)
+	return DateTime.fromUnixTimestamp(readu32(buff, offset)), 4
+end
+
+@native local function encodeDateTime64(buff: buffer, offset: number, arg: SchemaArg, value: DateTime): number
+	writef64(buff, offset, value.UnixTimestampMillis)
+	return 8
+end
+
+@native local function decodeDateTime64(buff: buffer, offset: number, arg: SchemaArg): (DateTime, number)
+	return DateTime.fromUnixTimestampMillis(readf64(buff, offset)), 8
+end
+
+local tweenStyles = {
+	Enum.EasingStyle.Linear,
+	Enum.EasingStyle.Back,
+	Enum.EasingStyle.Quad,
+	Enum.EasingStyle.Bounce,
+	Enum.EasingStyle.Sine,
+	Enum.EasingStyle.Cubic,
+	Enum.EasingStyle.Quart,
+	Enum.EasingStyle.Quint,
+	Enum.EasingStyle.Elastic,
+	Enum.EasingStyle.Circular,
+	Enum.EasingStyle.Exponential,	
+}
+
+local tweenDirections = {
+	Enum.EasingDirection.In,
+	Enum.EasingDirection.Out,
+	Enum.EasingDirection.InOut,
+}
+
+local function keyValueSwap(tbl: {[any]: any}): {[any]: any}
+	local new = {}
+	for k, v in tbl do
+		new[v] = k
+	end
+	return new
+end
+
+local tweenStylesToId: {[EnumItem]: number} = keyValueSwap(tweenStyles)
+local tweenDirectionsToId: {[EnumItem]: number} = keyValueSwap(tweenDirections)
+
+@native local function encodeTweenInfo(buff: buffer, offset: number, arg: SchemaArg, value: TweenInfo): number
+	local style = tweenStylesToId[value.EasingStyle]
+	local dir = tweenDirectionsToId[value.EasingDirection]
+	local reverse = value.Reverses and 1 or 0
+	local packed = style + dir * 16 + reverse * 128
+	
+	writeu16(buff, offset, value.Time * FX16_SCALE)
+	writeu8(buff, offset + 2, packed)
+	writei8(buff, offset + 3, value.RepeatCount)
+	writeu16(buff, offset + 4, value.DelayTime * FX16_SCALE)
+	return 6
+end
+
+@native local function decodeTweenInfo(buff: buffer, offset: number, arg: SchemaArg): (TweenInfo, number)
+	local tweenTime = readu16(buff, offset) / FX16_SCALE
+	local packed = readu8(buff, offset + 2)
+	local repeatCount = readi8(buff, offset + 3)
+	local delayTime = readu16(buff, offset + 4) / FX16_SCALE
+	
+	local styleId = packed % 16
+	local dirId = (packed // 16) % 8
+	local reverse = (packed // 128) == 1
+	
+	local tweenInfo = TweenInfo.new(
+		tweenTime, 
+		tweenStyles[styleId], 
+		tweenDirections[dirId], 
+		repeatCount,
+		reverse,
+		delayTime
+	)
+	return tweenInfo, 6
 end
 
 @native local function encodeBulkNumberU8Array(buff: buffer, offset: number, array: {number}): number
@@ -1270,8 +1449,8 @@ local dictTempCache: {[number]: {[any]: any}} = {}
 	local template = dictTempCache[dictId]
 	local dict
 	if template then
+		table.clear(template)
 		dict = table.clone(template)
-		table.clear(dict)
 	else
 		dict = {}
 	end
@@ -1313,17 +1492,9 @@ end
 
 @native local function decodeDictDynamic(buff: buffer, offset: number, schema: SchemaArg, inst: {Instance}?)
 	: ({[any]: any}, number)
-	local len = buffer.readu16(buff, offset)
+	local len = readu16(buff, offset)
 	local ptr = offset + 2
-	local dictId = schema[2]
-	local template = dictTempCache[dictId]
-	local dict
-	if template then
-		dict = table.clone(template)
-		table.clear(dict)
-	else
-		dict = {}
-	end
+	local dict = {}
 
 	for i = 1, len do
 		local keyType = readu8(buff, ptr)
@@ -1340,9 +1511,6 @@ end
 		local val, b = decodeVal(buff, ptr, schema, inst)
 		ptr += b
 		dict[key] = val
-	end
-	if not template then
-		dictTempCache[dictId] = table.clone(dict)
 	end
 	return dict, ptr - offset
 end
@@ -1362,6 +1530,7 @@ encodeData = {
 	[Enums.CFrameFX8] = encodeCFrameFX8,
 	[Enums.CFrameFX16] = encodeCFrameFX16,
 	[Enums.CFrameF16] = encodeCFrameF16,
+	[Enums.CFrameF32Aligned] = encodeCFrameF32Aligned,
 	[Enums.CFrameF32FX16] = encodeCFrameF32FX16,
 	[Enums.CFrameF32] = encodeCFrameF32,
 
@@ -1378,11 +1547,15 @@ encodeData = {
 	[Enums.String] = encodeString,
 	[Enums.StringLong] = encodeStringLong,
 	[Enums.Color3] = encodeColor,
+	[Enums.BrickColor] = encodeBrickColor,
 	[Enums.Boolean] = encodeBool,
 	[Enums.Nil] = encodeNil,
 	[Enums.Buffer] = encodeBuffer,
 	[Enums.EnumItem] = encodeEnumItem,
 	[Enums.Instance] = encodeInstance,
+	[Enums.DateTime32] = encodeDateTime32,
+	[Enums.DateTime64] = encodeDateTime64,
+	[Enums.TweenInfo] = encodeTweenInfo,
 
 	[Enums.Any] = encodeAny,
 	[Enums.ArrayStatic] = encodeArrayStatic,
@@ -1424,6 +1597,7 @@ decodeData = {
 	[Enums.CFrameFX8] = decodeCFrameFX8,
 	[Enums.CFrameFX16] = decodeCFrameFX16,
 	[Enums.CFrameF16] = decodeCFrameF16,
+	[Enums.CFrameF32Aligned] = decodeCFrameF32Aligned,
 	[Enums.CFrameF32FX16] = decodeCFrameF32FX16,
 	[Enums.CFrameF32] = decodeCFrameF32,
 
@@ -1440,11 +1614,15 @@ decodeData = {
 	[Enums.String] = decodeString,
 	[Enums.StringLong] = decodeStringLong,
 	[Enums.Color3] = decodeColor,
+	[Enums.BrickColor] = decodeBrickColor,
 	[Enums.Boolean] = decodeBool,
 	[Enums.Nil] = decodeNil,
 	[Enums.Buffer] = decodeBuffer,
 	[Enums.EnumItem] = decodeEnumItem,
 	[Enums.Instance] = decodeInstance,
+	[Enums.DateTime32] = decodeDateTime32,
+	[Enums.DateTime64] = decodeDateTime64,
+	[Enums.TweenInfo] = decodeTweenInfo,
 
 	[Enums.Any] = decodeAny,
 	[Enums.ArrayStatic] = decodeArrayStatic,

@@ -7,7 +7,7 @@ title: Home
 High performance networking solution for Roblox.
 
 ## Performance
-QuickNet uses dozens of clever optimization techniques under the hood to reduce GC allocations and minimize CPU usage. As a result, QuickNet is typically able to deliver **higher FPS** compared to default RemoteEvents. In addition, its buffer implementation allows data to be compressed when sent over the network, resulting in **lower network latency**.
+QuickNet uses dozens of clever optimization techniques under the hood to reduce allocations and minimize CPU usage. As a result, QuickNet is typically able to deliver **higher FPS** compared to default RemoteEvents. In addition, its buffer implementation allows data to be compressed when sent over the network, resulting in **lower network latency**.
 
 ## Protection
 QuickNet performs sanity checks on incoming data from clients to protect the server from invalid data and DDoS. In addition, the developer can set custom rate limits for each network event to protect the server from spammers.

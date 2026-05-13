@@ -10,6 +10,7 @@ Defs.bool1.OnServerEvent:Connect(function(player, data)
 	--print(data)
 end)
 
+
 Defs.bool2.OnServerEvent:Connect(function(player, data)
 
 end)
@@ -23,6 +24,10 @@ Defs.bool4.BoolTest.listen(function(data, player)
 end)
 
 Defs.bool5:Connect(function(player, data)
+	
+end)
+
+Defs.bool6.On(function(player, data)
 	
 end)
 
@@ -46,6 +51,10 @@ Defs.entities5:Connect(function(player, data)
 	
 end)
 
+Defs.entities6.On(function(player, data)
+	
+end)
+
 Defs.strings1.OnServerEvent:Connect(function(player, data)
 
 end)
@@ -63,6 +72,10 @@ Defs.strings4.StringsTest.listen(function(data, player)
 end)
 
 Defs.strings5:Connect(function(player, data)
+	
+end)
+
+Defs.strings6.On(function(player, data)
 	
 end)
 
@@ -86,6 +99,10 @@ Defs.numbers5:Connect(function(player, data)
 	
 end)
 
+Defs.numbers6.On(function(player, data)
+	
+end)
+
 Defs.dict1.OnServerEvent:Connect(function(player, data)
 
 end)
@@ -106,5 +123,17 @@ Defs.dict5:Connect(function(player, data)
 	
 end)
 
-return {}
+Defs.dict6.On(function(player, data)
+	
+end)
 
+local bools = table.create(500, true)
+Defs.remoteFunction1.OnServerInvoke = function(player, data)
+	return bools
+end
+
+Defs.remoteFunction2.On(function(player, data)
+	return bools
+end)
+
+return {}

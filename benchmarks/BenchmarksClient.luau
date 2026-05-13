@@ -9,6 +9,12 @@ local methods = {
 	RemoteEvent = "FireServer",
 	ByteNet = "send",
 	Jolt = "Fire",
+	Blink = "Fire",
+}
+
+local functionMethods = {
+	QuickNet = "InvokeServer",
+	Blink = "Invoke",
 }
 
 local events = {
@@ -52,6 +58,24 @@ local events = {
 		Dict = Defs.dict5,
 	},
 	
+	Blink = {
+		Booleans = Defs.bool6,
+		Entities = Defs.entities6,
+		Strings = Defs.strings6,
+		Numbers = Defs.numbers6,
+		Dict = Defs.dict6,
+	}
+	
+}
+
+local functions = {
+	QuickNet = {
+		RemoteFunction = Defs.remoteFunction1,
+	},
+	
+	Blink = {
+		RemoteFunction = Defs.remoteFunction2,
+	}
 }
 
 
@@ -87,14 +111,24 @@ local function getDictData()
 	return dict
 end
 
+local function getRemoteFunctionData()
+	local nums = {}
+	for i = 1, 500 do
+		nums[i] = math.random(0, 255)
+	end
+	return nums
+end
+
 local testData = {
 	Booleans = table.create(1000, true),
 	Entities = getEntitiesData(),
 	Strings = table.create(500, "Hello"),
 	Numbers = getNumbersData(),
 	Dict = getDictData(),
+	RemoteFunction = getRemoteFunctionData(),
 }
 
+--dont use deltaTime it doesnt show below 15 fps
 local function startTest(networkName: string, testName: string, firesPerFrame: number, duration: number?)
 	duration = duration or 10	
 	local methodName = methods[networkName]
@@ -102,6 +136,8 @@ local function startTest(networkName: string, testName: string, firesPerFrame: n
 	local fire = event[methodName]
 	local data = testData[testName]
 	local isByteNet = networkName == "ByteNet"
+	local isBlink = networkName == "Blink"	
+	local dotCall = isByteNet or isBlink
 
 	task.wait(3)
 	local numFrames = 0
@@ -111,7 +147,7 @@ local function startTest(networkName: string, testName: string, firesPerFrame: n
 
 	local conn
 	conn = RunService.PostSimulation:Connect(function()
-		if isByteNet then
+		if dotCall then
 			for i = 1, firesPerFrame do
 				fire(data)
 			end
@@ -139,10 +175,55 @@ local function startTest(networkName: string, testName: string, firesPerFrame: n
 		end
 	end)
 end
---dont use deltaTime it doesnt show below 15 fps
 
-return {start = startTest}
+local function startFunction(networkName: string, testName: string, firesPerFrame: number, duration: number?)
+	duration = duration or 300	
+	local methodName = functionMethods[networkName]
+	local func = functions[networkName][testName]
+	local invoke = func[methodName]
+	local data = testData[testName]
+	local isByteNet = networkName == "ByteNet"
+	local isBlink = networkName == "Blink"	
+	local dotCall = isByteNet or isBlink
 
+	task.wait(3)
+	local numFrames = 0
+	local timePassed = 0
+	local timestamp
+	local kbps = 0
 
+	local conn
+	conn = RunService.PostSimulation:Connect(function()
+		if dotCall then
+			for i = 1, firesPerFrame do
+				task.spawn(invoke, data)
+			end
+		else
+			for i = 1, firesPerFrame do
+				task.spawn(invoke, func, data)
+			end
+		end
 
+		local now = os.clock()
+		if timestamp then
+			numFrames += 1
+			timePassed += now - timestamp
+			kbps += Stats.DataSendKbps
+		end
+		timestamp = now
 
+		if timePassed >= duration then
+			local avgFps = numFrames/timePassed
+			--scale kbps by 60/fps, more fps will send packets more often
+			local avgKbps = (60 / avgFps) * kbps / numFrames
+			print(string.format("\n[%s] [%s] \nAverage FPS: %.3f \nAverage Kbps %.3f", 
+				networkName, testName, avgFps, avgKbps))
+			conn:Disconnect()
+		end
+	end)
+end
+
+return {
+	start = startTest,
+	startFunction = startFunction,
+}

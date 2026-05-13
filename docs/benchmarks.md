@@ -14,6 +14,7 @@ Benchmarks are conducted by firing the network event 1000 times per frame with t
 | Jolt | 3.62 | 0.96x |  95.11
 | Packet | 10.26 | 2.62x |  41.33 
 | ByteNet | 14.66 | 3.75x | 38.66
+| Blink | 23.39	| 5.98x	| 39.33
 | **QuickNet** | **34.86** | **8.92x** | **40.78** 
 
 ### Booleans Test
@@ -24,6 +25,7 @@ Benchmarks are conducted by firing the network event 1000 times per frame with t
 | Jolt | 3.39 | 0.46x |  124.53
 | Packet | 11.19 | 1.52x | 9.83 |
 | ByteNet | 12.98 | 1.76x | 9.25 |
+| Blink | 46.56 |	6.65x	| 8.07
 | **QuickNet** | **141.23** | **19.19x** | **2.89** |
 
 ### Strings Test
@@ -34,6 +36,7 @@ Benchmarks are conducted by firing the network event 1000 times per frame with t
 | Jolt | 5.19 | 0.48x | 56.22 |
 | Packet | 10.53 | 0.97x | 21.38 |
 | ByteNet | 0.21 | 0.02x | 39.83 |
+| Blink | 22.20 |	2.05x	| 21.62 |
 | **QuickNet** | **44.15** | **4.08x** | **18.63** |
 
 ### Numbers Test
@@ -44,6 +47,7 @@ Benchmarks are conducted by firing the network event 1000 times per frame with t
 | Jolt | 2.01 | 0.39x | 332.85 |
 | Packet | 6.20 | 1.14x | 129.53 |
 | ByteNet | 6.84 | 1.26x | 120.27 |
+| Blink | 23.11	| 4.24x	| 122.20 |
 | **QuickNet** | **60.23** | **11.05x** | **125.42** |
 
 ### Dictionary Test
@@ -54,6 +58,7 @@ Benchmarks are conducted by firing the network event 1000 times per frame with t
 | Jolt | 4.58 | 0.75x | 128.16 |
 | Packet | 4.72 | 0.77x | 145.78 |
 | ByteNet | 0.10 | 0.02x | 246.81 |
+| Blink | 12.14	| 1.98x	| 127.51 |
 | **QuickNet** | **22.52** | **3.68x** | **142.24** |
 
 ### RemoteFunction Test
@@ -65,4 +70,5 @@ The RemoteFunction test is conducted by sending a table of 500 numbers 1000 time
 | Jolt | 3.24 | 0.99x | 307.97
 | Packet | Crash |  |
 | ByteNet | N/A | |
+| Blink | Crash | |
 | **QuickNet** | **58.29** | **17.77x** |  **159.12** |

@@ -4,8 +4,12 @@ local Net = require(ReplicatedStorage.QuickNet)
 local Packet = require(ReplicatedStorage.Packet)
 local ByteNet = require(ReplicatedStorage.ByteNet)
 local Jolt = require(ReplicatedStorage.Jolt)
-local env = RunService:IsServer() and "Server" or "Client"
+local isServer = RunService:IsServer()
+local blinkFolder = ReplicatedStorage.Blink
+local Blink = isServer and require(blinkFolder.Server) or require(blinkFolder.Client)
+local env = isServer and "Server" or "Client"
 local remote = ReplicatedStorage:WaitForChild("BenchmarkRemote")
+local data = Net.Data
 
 local module = {
 	bool1 = Net:register("BoolTest", {Net.Data.Boolean}):SetRateLimit(1000000000, 30),
@@ -19,6 +23,7 @@ local module = {
 		}
 	end),
 	bool5 = Jolt[env]("BoolTest"),
+	bool6 = Blink.Booleans,
 
 	entities1 = Net:register("EntitiesTest",
 		{
@@ -61,6 +66,7 @@ local module = {
 		}
 	end),
 	entities5 = Jolt[env]("EntitiesTest"),
+	entities6 = Blink.Entities,
 
 	strings1 = Net:register("StringsTest", {Net.Data.String}):SetRateLimit(1000000000, 30),
 	strings2 = Packet("StringsTest", {Packet.String}),
@@ -73,6 +79,7 @@ local module = {
 		}
 	end),
 	strings5 = Jolt[env]("StringsTest"),
+	strings6 = Blink.Strings,
 
 	numbers1 = Net:register("NumbersTest", {Net.Data.NumberU8}):SetRateLimit(1000000000, 30),
 	numbers2 = Packet("NumbersTest", {Packet.NumberU8}),
@@ -85,6 +92,7 @@ local module = {
 		}
 	end),
 	numbers5 = Jolt[env]("NumbersTest"),
+	numbers6 = Blink.Numbers,
 
 	dict1 = Net:register("DictTest", {[Net.Data.String] = Net.Data.NumberU8}):SetRateLimit(1000000000, 30),
 	dict2 = Packet("DictTest", Packet.Any),
@@ -97,9 +105,11 @@ local module = {
 		}
 	end),
 	dict5 = Jolt[env]("DictTest"),
+	dict6 = Blink.Dictionary,
 	
 	remoteFunction1 = Net:register("RemoteFunctionTest", {Net.Data.NumberU8}):Response({Net.Data.Boolean})
-		:SetRateLimit(1000000000000, 30)
+		:SetRateLimit(1000000000000, 30),	
+	remoteFunction2 = Blink.RemoteFunction,
 }
 
 return module

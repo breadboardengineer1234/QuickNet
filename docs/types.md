@@ -5,8 +5,12 @@ title: Types
 
 # Types
 This section explains how each type works and indicates their respective sizes. In all code examples, ```local data = QuickNet.Data``` is implied.
-> [!IMPORTANT]
-> Types of data sent over the network must match the types defined in the schema or else QuickNet will throw an error/behave unexpectedly.
+<div class="important-block">
+    <div class="important-title">IMPORTANT</div>
+    <div class="important-content">
+       Types of data sent over the network must match the types defined in the schema. Mismatched types will cause QuickNet to throw an error or behave unexpectedly.
+    </div>
+</div>
 
 ## Numbers (1-8 bytes)
 QuickNet supports all number types supported by the buffer library as well as float16 (F16). Because float16 is not natively supported in luau, using it incurs much higher CPU overhead compared to other number types; this is despite QuickNet having a fairly optimal implementation of it. Below is a list of the supported number types with their ranges. Note that floating point numbers stop being able to accurately represent integer increments at values far above/below the min/max bounds.

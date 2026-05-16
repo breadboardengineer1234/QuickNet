@@ -134,10 +134,10 @@ An optional type specifies a value that can either be the specified type or nil,
 This method can be called to make any QuickNet type optional.
 ```lua
 --optional primitive
-local event1 = QuickNet:register("WhateverEvent1", data.optional(data.NumberF32))
+QuickNet:register("WhateverEvent1", data.optional(data.NumberF32))
 
 --optional composite type
-local event2 = Net:register("WhateverEvent2", data.optional(
+QuickNet:register("WhateverEvent2", data.optional(
     {
         data.Color3, 
 		{ [data.String] = {hello = data.String, inner = {[data.Vector3FX16] = data.NumberU8}, another = data.DateTime32} },
@@ -153,13 +153,13 @@ A union type specifies a value that can be any one of multiple types, similar to
 ### `data.union`
 This method can be called to define a type which is a union of two different types.
 ```lua
-local event = QuickNet:register("UnionEvent", data.union({whatever1 = data.NumberU8, whatever2 = data.String}, data.BrickColor))
+QuickNet:register("UnionEvent", data.union({whatever1 = data.NumberU8, whatever2 = data.String}, data.BrickColor))
 ```
 
 ### `data.unionMany`
 This method can be called to define a type which is a union of an arbitrary number of different types.
 ```lua
-local event = QuickNet:register("UnionManyEvent", data.unionMany(data.NumberF32, data.String, data.Boolean, data.Vector3I16))
+QuickNet:register("UnionManyEvent", data.unionMany(data.NumberF32, data.String, data.Boolean, data.Vector3I16))
 ```
 
 <div class="important-block">
@@ -177,15 +177,15 @@ local event = QuickNet:register("UnionManyEvent", data.unionMany(data.NumberF32,
 </div>
 
 ## Literals
-A literal type specifies a specific value for the data. For example, if the literal type is "Hello", the value can only be the string "Hello". Literals can be useful for specific values known at compile time, such as states or custom enums. QuickNet encodes literal types as a single byte, which can safe a significant amount of network bandwidth.
+A literal type is a type that defines specific values for the data. For example, if the literal type is "Hello", the value can only be the string "Hello". Literals can be useful for specific values known at compile time, such as states or custom enums. QuickNet encodes literal types as a single byte, which can save a significant amount of network bandwidth.
 
 ### `data.literal`
 This function can be called to define a literal type. It accepts the specific values the literal type can take on as input.
 ```lua
-local event = QuickNet:register("StatesEvent", data.literal("Attack", "Idle", "Chase", "Patrol", "Sleep"))
+QuickNet:register("StatesEvent", data.literal("Attack", "Idle", "Chase", "Patrol", "Sleep"))
 
 --mixed literals
-local event2 = QuickNet:register("MixedEvent", data.literal("Upgrade", 123, Vector3.new(1, 2, 3), true))
+QuickNet:register("MixedEvent", data.literal("Upgrade", 123, Vector3.new(1, 2, 3), true))
 ```
 <div class="important-block">
     <div class="important-title">NOTE</div>
@@ -202,7 +202,7 @@ FX stands for [fixed point](https://en.wikipedia.org/wiki/Fixed-point_arithmetic
 CFrame FX types follow the scaling discussed above for position, but not for rotation. Instead, for rotation values the full range of the integer type is mapped to [-π, π], meaning even with FX16 they retain very high precision. The CFrameF32FX16 type exists for that reason: it uses F32 for the position but FX16 for the rotation.
 
 ### Aligned CFrames
-A CFrame is considered to be aligned if its rotatation is aligned with one of the 3 axes (X, Y, or Z). In simple terms, if each rotation value is a multiple of 90 degrees then the CFrame is aligned. Under this condition, the rotation can only have 24 possible states. Therefore, instead of sending the full rotation we can do some math to map the alignment to a number ID that fits in 1 byte, saving a significant amount of bandwidth as well as CPU usage. The CFrameF32Aligned type does exactly this. When using this type if the given CFrame is not actually aligned, the serializer will automatically snap it to the nearest aligned axis. This behavior can be quite useful, since if your "aligned" CFrame is off by some rounding errors it will still work.
+A CFrame is considered to be aligned if its rotatation is aligned with one of the 3 axes (X, Y, or Z). In simple terms, if each rotation value is a multiple of 90 degrees then the CFrame is aligned. Under this condition, the rotation can only have 24 possible states. Therefore, instead of sending the full rotation we can do some math to map the alignment to a number ID that fits in 1 byte, saving a significant amount of bandwidth as well as CPU usage. The CFrameF32Aligned type does exactly this. When using this type if the given CFrame is not actually aligned, the serializer will automatically snap it to the nearest aligned axis. This behavior can be quite useful, since if the "aligned" CFrame is off by some rounding errors it will still be serialized correctly.
 
 | CFrame Type | Minimum Value | Maximum Value | Size (bytes) |
 |-------------|--------------|---------------| ---------------|
@@ -251,13 +251,22 @@ local notArray3 = {[2] = 23423, [3] = 1234, [4] = 764}
 QuickNet supports 3 types of arrays: static arrays, uniform arrays, and dynamic arrays.
 
 ### Static Array
-Use a static array when the types of each element in the array is known at compile time and are not subject to change during run time. The byte size of a static array is simply the size of each element added up. To define a static array, list out each type in a table. For example: ```{data.NumberU8, data.String, data.Boolean, data.CFrameF32}```.
+Use a static array when the types of each element in the array is known at compile time and are not subject to change during run time. The byte size of a static array is simply the size of each element added up. To define a static array, list out each type in a table. For example:
+```lua
+QuickNet:register("StaticArrayEvent", {data.NumberU8, data.String, data.Boolean, data.CFrameF32})
+```
 
 ### Uniform Array
-Use a uniform array when the type of each element is the same, but the number of elements can vary. Uniform arrays use 2 extra bytes to store the length, but have the highest CPU optimization. The byte size of a uniform array is the sum of the sizes of the elements plus the aforementioned 2 bytes. To define a uniform array, declare a table with 1 type inside of it, such as: ```{data.Vector3F32}```.
+Use a uniform array when the type of each element is the same, but the number of elements can vary. Uniform arrays use 2 extra bytes to store the length, but have the highest CPU optimization. The byte size of a uniform array is the sum of the sizes of the elements plus the aforementioned 2 bytes. To define a uniform array, declare a table with 1 type inside of it, such as:
+```lua
+QuickNet:register("UniformArrayEvent", {data.Vector3F32})
+```
 
 ### Dynamic Array
-Use a dynamic array when both the types of the elements and the number of them are not known at compile time. In other words, a dynamic array can contain any number of elements of any type. However, this flexibility comes at a significant cost to CPU usage and network bandwidth because QuickNet has to perform extra scans on each element to determine its type, then perform extra buffer operations to store a type tag for each element. The size of a dynamic array is the sum of the sizes of the elements plus 2 bytes for the length plus 1 byte for each element. To define a dynamic array simply declare a table with the Any type: ```{data.Any}```.
+Use a dynamic array when both the types of the elements and the number of them are not known at compile time. In other words, a dynamic array can contain any number of elements of any type. However, this flexibility comes at a significant cost to CPU usage and network bandwidth because QuickNet has to perform extra scans on each element to determine its type, then perform extra buffer operations to store a type tag for each element. The size of a dynamic array is the sum of the sizes of the elements plus 2 bytes for the length plus 1 byte for each element. To define a dynamic array simply declare a table with the Any type:
+```lua
+QuickNet:register("DynamicArray", {data.Any})
+```
 
 ## Dictionaries
 Dictionaries are tables with keys that aren't consecutive integers starting from 1. Examples of dictionaries:
@@ -273,13 +282,29 @@ local notDict2 = {[1] = "whatever", [2] = "somestring", [3] = "someotherstring"}
 QuickNet supports 3 types of dictionaries: static dictionaries, uniform dictionaries, and dynamic dictionaries. With some exceptions*, any QuickNet data type can be used as keys.
 
 ### Static Dictionary
-Use a static dictionary when the keys themselves and the types of the values are known at compile time. Static dictionaries are extremely powerful because they can reduce the network traffic by 2x. How is this possible? Because the keys are known at compile time QuickNet is able to build a sorted keys map on start up, allowing us to send only the values over the network without losing any information. Therefore, the byte size of a static dictionary is only the sum of the sizes of each value. Furthermore, because we send 2x less data we also perform 2x less buffer operations, which significantly reduces the CPU overhead. Note that static dictionaries currently only support strings and numbers as keys (subject to change). To define a static dictionary, declare a table with the keys set equal to the types of the corresponding values: ```{name = data.String, health = data.NumberU32, speed = data.NumberU8, isAlive = data.Boolean}```.
+Use a static dictionary when the keys themselves and the types of the values are known at compile time. Static dictionaries are extremely powerful because they can reduce the network traffic by 2x. How is this possible? Because the keys are known at compile time QuickNet is able to build a sorted keys map on start up, allowing us to send only the values over the network without losing any information. Therefore, the byte size of a static dictionary is only the sum of the sizes of each value. Furthermore, because we send 2x less data we also perform 2x less buffer operations, which significantly reduces the CPU overhead. Note that static dictionaries currently only support strings and numbers as keys (subject to change). To define a static dictionary, declare a table with the keys set equal to the types of the corresponding values:
+```lua
+QuickNet:register("StaticDictEvent", {name = data.String, health = data.NumberU32, speed = data.NumberU8, isAlive = data.Boolean})
+```
+
+<div class="important-block">
+    <div class="important-title">NOTE</div>
+    <div class="important-content">
+    	Static Dictionaries can only have strings or numbers as keys.
+    </div>
+</div>
 
 ### Uniform Dictionary
-Use a uniform dictionary when the types of both the keys and values are known at compile time, but the number of key-value pairs can vary. Uniform dictionaries, like uniform arrays, use 2 extra bytes to store the number of key-value pairs, meaning the byte size is the total size of the elements plus 2 bytes. Nonetheless, it's highly optimized for CPU usage and should be used over dynamic dictionaries whenever possible. To define a uniform dictionary, declare a table with a single key-value entry where the key is the type of the keys and the value is the type of the values: ```{[data.String] = data.NumberU8}```.
+Use a uniform dictionary when the types of both the keys and values are known at compile time, but the number of key-value pairs can vary. Uniform dictionaries, like uniform arrays, use 2 extra bytes to store the number of key-value pairs, meaning the byte size is the total size of the elements plus 2 bytes. Nonetheless, it's highly optimized for CPU usage and should be used over dynamic dictionaries whenever possible. To define a uniform dictionary, declare a table with a single key-value entry where the key is the type of the keys and the value is the type of the values:
+```lua
+QuickNet:register("UniformDictEvent", {[data.String] = data.NumberU8})
+```
 
 ### Dynamic Dictionary
-Use a dynamic dictionary when the keys and values can be any type and there can be any number of key-value pairs. Like dynamic arrays, dynamic dictionaries have a significant cost to CPU usage and network bandwidth for the same reasons as discussed for the former. The byte size of a dynamic dictionary is the total size of all the keys and values plus 2 bytes for the length plus 1 byte for each key and each value. To define a dynamic dictionary: ```{[data.Any] = data.Any}```.
+Use a dynamic dictionary when the keys and values can be any type and there can be any number of key-value pairs. Like dynamic arrays, dynamic dictionaries have a significant cost to CPU usage and network bandwidth for the same reasons as discussed for the former. The byte size of a dynamic dictionary is the total size of all the keys and values plus 2 bytes for the length plus 1 byte for each key and each value. To define a dynamic dictionary:
+```lua
+QuickNet:register("DynamicDictEvent", {[data.Any] = data.Any}
+```
 
 ## Nested Arrays & Dictionaries
 QuickNet supports any kind of nested table structure. In order to define a nested type, simply nest the table type definitions in the same way as your actual data. Some examples:
@@ -303,6 +328,7 @@ Any combination of the array and dictionary types can be nested any which way.
 
 ## Fast Paths
 QuickNet can boost performance for eligible arrays and dictionaries via fast paths. Think of a fast path like an expressway. Internally, QuickNet takes advantage of data uniformity to vectorize operations, which reduces the number of buffer operations and function calls, and leads to significantly lower CPU usage. Currently, fast paths can be accessed when using static arrays where each element is the same type as every other element, uniform arrays, static dictionaries where each value is the same type as every other value, and uniform dictionaries. Here's a list of primitive types with fast paths:
+* NumberU4
 * NumberU8
 * NumberI32
 * NumberF32

@@ -13,11 +13,26 @@ This section explains how each type works and indicates their respective sizes. 
     </div>
 </div>
 
-## Numbers (1-8 bytes)
-QuickNet supports all number types supported by the buffer library as well as float16 (F16). Because float16 is not natively supported in luau, using it incurs much higher CPU overhead compared to other number types; this is despite QuickNet having a fairly optimal implementation of it. Below is a list of the supported number types with their ranges. Note that floating point numbers stop being able to accurately represent integer increments at values far above/below the min/max bounds.
+## Numbers (0.5-8 bytes)
+QuickNet supports all number types supported by the buffer library as well as float16 (F16) and half byte integers (NumberU4). 
+
+<div class="important-block">
+    <div class="important-title">NOTE</div>
+    <div class="important-content">
+       The NumberF16 type is much slower than other types because it isn't supported natively in Luau.
+    </div>
+</div>
+
+<div class="important-block">
+    <div class="important-title">NOTE</div>
+    <div class="important-content">
+       Because the natural unit of buffers is single bytes, it doesn't make sense to support individual 4 bit numbers from a performance standpoint. Therefore, QuickNet only supports NumberU4 when used in an array. If the number of elements is not divisible by 2, the remainder (at most 1) will be stored as a NumberU8. Note that using NumberU4 in other contexts will automatically default to the NumberU8 type. Due to the way NumberU4s are encoded, they MUST follow all the rules of the type, meaning the values cannot be outside of the specified range and cannot have decimals. Values that do not meet these criteria will not wrap around or get truncated; instead, they will corrupt other NumberU4 values.
+    </div>
+</div>
 
 | Number Type | Minimum Value | Maximum Value | Size (bytes) |
 |-------------|--------------|---------------| ---------------|
+| NumberU4 | 0 | 15 | 0.5 |
 | NumberU8    | 0            | 255           | 1 |
 | NumberU16   | 0            | 65,535        | 2 |
 | NumberU32   | 0            | 4,294,967,295 | 4 |
@@ -64,6 +79,18 @@ local enums = {
 
 QuickNet:setEnumItems(enums)
 ```
+## Instance
+Any Roblox Instance which exists on both client and server.
+
+<div class="important-block">
+    <div class="important-title">NOTE</div>
+    <div class="important-content">
+       Because Instances cannot be serialized into buffers and are therefore sent directly over the network, using the Instance type negates most of the performance benefits of QuickNet.
+    </div>
+</div>
+
+## Player (8 bytes)
+This type is used for Player instances. Unlike other instances, Player instances can be serialized into a buffer using the player's UserId. This type does not have the same performance drawbacks as the Instance type.
 
 ## DateTime32 (4 bytes)
 A DateTime object serialized using the unix timestamp in seconds.
@@ -74,14 +101,98 @@ A DateTime object serialized using the unix timestamp in miliseconds.
 ## TweenInfo (6 bytes)
 A TweenInfo object. The Time and DelayTime are both serialized using FX16 (16 bit fixed point), meaning their minimum and maximum values are -327.68 and 327.67, respectively, and they have a precision of 2 decimal places. The RepeatCount is stored as a NumberI8, and the rest of the fields are bit packed into a single byte.
 
-## Instance
-Any Roblox Instance which exists on both client and server. Since Instances cannot serialize into buffers, they are passed over the network directly. As a result, QuickNet does not usually have better performance than default RemoteEvents when sending Instances. There are a few exceptions under heavy load when QuickNet can take advantage of its call batching.
+## ColorSequence
+A ColorSequence object. The number of keypoints uses 1 byte and each keypoint uses 4 bytes: 1 byte for the time and 3 bytes for each of the RGB values of the color.
+
+## NumberSequence
+A NumberSequence object. The number of keypoints uses 1 byte and each keypoint uses 3 bytes: 1 byte for each of time, value, and envelope.
+
+## NumberRange (8 bytes)
+A NumberRange object. The min and max values are both serialized as float32s, totaling 8 bytes.
+
+## UDim (4 bytes)
+A UDim object. The Scale is encoded as an int16 scaled by 1000 while the offset is encoded directly as an int16.
+
+## UDim2 (8 bytes)
+A UDim2 object. The encoding is the same as for UDim for each of the X and Y components.
+
+## Region3 (24 bytes)
+A Region3 object. Each component of the minimum and maximum Vector3s is serialized as a float32.
+
+## PhysicalProperties (9 bytes)
+A PhysicalProperties object. The Density uses uint16, Friction uses uint8, Elasticity uses uint8, FrictionWeight uses uint16, ElasticityWeight uses uint16, and AcousticAbsorption uses uint8. The serialization assumes each value is within the range specified on the Roblox docs.
+
+## Rect (16 bytes)
+A Rect object. Each component of the min and max values are stored as float32s.
 
 ## Any
 Any QuickNet data type. When using the Any type there is a 1 byte overhead to store the type tag.
 
 ## Optionals
-To define an optional type simply use the Any type and cast it to the desired type. For example, if we wanted an optional Color3 we would do: ```data.Any :: Color3?```
+An optional type specifies a value that can either be the specified type or nil, similar to the "?" type operator. Optional types are much faster than Any types, but slower than normal types.
+### `data.optional`
+This method can be called to make any QuickNet type optional.
+```lua
+--optional primitive
+local event1 = QuickNet:register("WhateverEvent1", data.optional(data.NumberF32))
+
+--optional composite type
+local event2 = Net:register("WhateverEvent2", data.optional(
+    {
+        data.Color3, 
+		{ [data.String] = {hello = data.String, inner = {[data.Vector3FX16] = data.NumberU8}, another = data.DateTime32} },
+        data.optional(data.TweenInfo),
+        {data.Boolean},
+}
+), 
+data.optional(data.NumberF32)),
+```
+
+## Unions
+A union type specifies a value that can be any one of multiple types, similar to the "|" type operator. Union types are faster than Any types but slower than optional types.
+### `data.union`
+This method can be called to define a type which is a union of two different types.
+```lua
+local event = QuickNet:register("UnionEvent", data.union({whatever1 = data.NumberU8, whatever2 = data.String}, data.BrickColor))
+```
+
+### `data.unionMany`
+This method can be called to define a type which is a union of an arbitrary number of different types.
+```lua
+local event = QuickNet:register("UnionManyEvent", data.unionMany(data.NumberF32, data.String, data.Boolean, data.Vector3I16))
+```
+
+<div class="important-block">
+    <div class="important-title">NOTE</div>
+    <div class="important-content">
+       Because the actual type is checked during run time, QuickNet types of the same Luau type cannot be unioned. In other words, a NumberF32 cannot be unioned with a NumberU8, a CFrameF32 cannot be unioned with a CFrameF16, etc.
+    </div>
+</div>
+
+<div class="important-block">
+    <div class="important-title">NOTE</div>
+    <div class="important-content">
+       Any, optional, and literal types cannot be unioned.
+    </div>
+</div>
+
+## Literals
+A literal type specifies a specific value for the data. For example, if the literal type is "Hello", the value can only be the string "Hello". Literals can be useful for specific values known at compile time, such as states or custom enums. QuickNet encodes literal types as a single byte, which can safe a significant amount of network bandwidth.
+
+### `data.literal`
+This function can be called to define a literal type. It accepts the specific values the literal type can take on as input.
+```lua
+local event = QuickNet:register("StatesEvent", data.literal("Attack", "Idle", "Chase", "Patrol", "Sleep"))
+
+--mixed literals
+local event2 = QuickNet:register("MixedEvent", data.literal("Upgrade", 123, Vector3.new(1, 2, 3), true))
+```
+<div class="important-block">
+    <div class="important-title">NOTE</div>
+    <div class="important-content">
+       Currently only numbers, strings, booleans, and Vector3 can be defined as literals. Also, the data used must match the values passed into data.literal exactly, or else QuickNet will throw an error.
+    </div>
+</div>
 
 ## FX Types
 FX stands for [fixed point](https://en.wikipedia.org/wiki/Fixed-point_arithmetic), which involves multiplying a value by a constant. For example, for FX8 the value is multiplied by 10 when encoding and dividied by 10 when decoding. For FX16, the value is multipled by 100 when encoding and divided by the same amount when decoding. Fixed point allows us to represent decimal values using integers, which helps reduce the data size and decrease CPU usage compared to floating point representations. One downside of fixed point is it limits the values to a small range. Therefore, when using FX types it's important to pay attention to the bounds.
@@ -96,6 +207,7 @@ A CFrame is considered to be aligned if its rotatation is aligned with one of th
 | CFrame Type | Minimum Value | Maximum Value | Size (bytes) |
 |-------------|--------------|---------------| ---------------|
 | CFrameFX8    | -12.8            | 12.7           | 6 |
+| CFrameI16FX16    | -32,768           | 32,767           | 12 |
 | CFrameFX16   | -327.68            | 327.67       | 12 |
 | CFrameF16  | -65,504          | 65,504 | 12 |
 | CFrameF32Aligned  | -3.4e38          | 3.4e38 | 13 |
@@ -107,6 +219,7 @@ A CFrame is considered to be aligned if its rotatation is aligned with one of th
 | Vector3 Type | Minimum Value | Maximum Value | Size (bytes) |
 |-------------|--------------|---------------| ---------------|
 | Vector3FX8    | -12.8            | 12.7           | 3 |
+| Vector3I16   | -32,768           | 32,767        | 6 |
 | Vector3FX16   | -327.68           | 327.67        | 6 |
 | Vector3F16  | -65,504          | 65,504 | 6 |
 | Vector3F32   | -3.4e38      | 3.4e38        | 12 |
@@ -116,6 +229,7 @@ A CFrame is considered to be aligned if its rotatation is aligned with one of th
 | Vector2 Type | Minimum Value | Maximum Value | Size (bytes) |
 |-------------|--------------|---------------| ---------------|
 | Vector2FX8    | -12.8            | 12.7           | 2 |
+| Vector2I16   | -32,768            | 32,767       | 4 |
 | Vector2FX16   | -327.68            | 327.67       | 4 |
 | Vector2F16  | -65,504          | 65,504 | 4 |
 | Vector2F32   | -3.4e38      | 3.4e38        | 8 |

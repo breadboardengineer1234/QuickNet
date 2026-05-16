@@ -26,7 +26,7 @@ QuickNet supports all number types supported by the buffer library as well as fl
 <div class="important-block">
     <div class="important-title">NOTE</div>
     <div class="important-content">
-       Because the natural unit of buffers is single bytes, it doesn't make sense to support individual 4 bit numbers from a performance standpoint. Therefore, QuickNet only supports NumberU4 when used in an array. If the number of elements is not divisible by 2, the remainder (at most 1) will be stored as a NumberU8. Note that using NumberU4 in other contexts will automatically default to the NumberU8 type. Due to the way NumberU4s are encoded, they MUST follow all the rules of the type, meaning the values cannot be outside of the specified range and cannot have decimals. Values that do not meet these criteria will not wrap around or get truncated; instead, they will corrupt other NumberU4 values.
+       QuickNet only supports NumberU4 when used in an array. If the number of elements is not divisible by 2, the remainder (at most 1) will be stored as a NumberU8. Note that using NumberU4 in other contexts will automatically default to the NumberU8 type. Due to the way NumberU4s are encoded, they MUST follow all the rules of the type, meaning the values cannot be outside of the specified range and cannot have decimals. Values that do not meet these criteria will not wrap around or get truncated; instead, they will corrupt other NumberU4 values.
     </div>
 </div>
 

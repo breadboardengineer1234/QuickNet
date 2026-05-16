@@ -157,7 +157,7 @@ QuickNet:register("UnionEvent", data.union({whatever1 = data.NumberU8, whatever2
 ```
 
 ### `data.unionMany`
-This method can be called to define a type which is a union of an arbitrary number of different types.
+This method can be called to define a type which is a union of an arbitrary number of different types. However, due to limiations of Luau's type checker it is not possible to have built in autocomplete for arbitrary unions. To get around this, the user should type cast to the desired type.
 ```lua
 QuickNet:register("UnionManyEvent", data.unionMany(data.NumberF32, data.String, data.Boolean, data.Vector3I16))
 ```

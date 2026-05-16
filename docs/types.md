@@ -128,6 +128,13 @@ A Rect object. Each component of the min and max values are stored as float32s.
 ## Any
 Any QuickNet data type. When using the Any type there is a 1 byte overhead to store the type tag.
 
+<div class="important-block">
+    <div class="important-title">NOTE</div>
+    <div class="important-content">
+    	The Any type is slower than normal types as QuickNet has to perform extra checks during run time and additional buffer operations for the type tag.
+    </div>
+</div>
+
 ## Optionals
 An optional type specifies a value that can either be the specified type or nil, similar to the "?" type operator. Optional types are much faster than Any types, but slower than normal types.
 ### `data.optional`

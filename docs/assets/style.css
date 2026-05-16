@@ -220,8 +220,8 @@ a:hover {
 .important-block {
     margin: 1.25rem 0;
     padding: 0;
-    border-left: 4px solid #ffb347;
-    background-color: #2b241c;
+    border-left: 4px solid #3b82f6; 
+    background-color: #1b2433;     
     border-radius: 6px;
     overflow: hidden;
 }
@@ -231,12 +231,12 @@ a:hover {
     font-weight: 700;
     font-size: 0.9rem;
     letter-spacing: 0.05em;
-    color: #1a1a1a;
-    background-color: #ffb347;
+    color: #0b1220;
+    background-color: #60a5fa; 
 }
 
 .important-content {
     padding: 1rem;
-    color: #e6e6e6;
+    color: #e5e7eb;
     line-height: 1.6;
 }

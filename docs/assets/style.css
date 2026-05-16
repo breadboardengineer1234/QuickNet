@@ -220,7 +220,6 @@ a:hover {
 .important-block {
     margin: 1.25rem 0;
     padding: 0;
-    border-left: 4px solid #3b82f6; 
     background-color: #1b2433;     
     border-radius: 6px;
     overflow: hidden;
@@ -232,7 +231,7 @@ a:hover {
     font-size: 0.9rem;
     letter-spacing: 0.05em;
     color: #0b1220;
-    background-color: #60a5fa; 
+    background-color: #3b82f6; 
 }
 
 .important-content {

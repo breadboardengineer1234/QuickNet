@@ -8,8 +8,8 @@ export type Signal<T...> = {
 
 export type NetworkFunction<A..., B...> = {
 	--server
-	OnServerInvoke: (player: Player, A...) -> B...,
-	OnServerInvokeAsync: (player: Player, A...) -> B...,	
+	OnServerInvoke: (Player, A...) -> B...,
+	OnServerInvokeAsync: (Player, A...) -> B...,	
 	--shared
 	SetRateLimit: (self: NetworkFunction<A..., B...>, max: number, timeWindow: number) -> NetworkFunction<A..., B...>,
 	SetResponseTimeout: (self: NetworkFunction<A..., B...>, timeout: number) -> NetworkFunction<A..., B...>,
@@ -63,6 +63,8 @@ export type Queue = {
 	TempBuffer: buffer,
 	Instances: {Instance},
 }
+
+export type Literal = number | string | boolean | Vector3
 
 local module = {}
 

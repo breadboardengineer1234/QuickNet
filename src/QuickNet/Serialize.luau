@@ -1,12 +1,12 @@
 --!optimize 2
+local Players = game:GetService("Players")
 
 local Types = require(script.Parent.Types)
 local Enums = require(script.Parent.Enums)
 
 type SchemaArg = Types.SchemaArg
+type Literal = Types.Literal
 
-local MAX_STR_LEN = 255
-local MAX_BUFFER_LEN = 65535
 local FX8_SCALE = 10
 local FX8_ROT_SCALE = 40.42
 local FX16_SCALE = 100
@@ -26,7 +26,16 @@ local DYNAMIC_DEFAULTS = {
 	Instance = Enums.Instance,
 	DateTime = Enums.DateTime64,
 	TweenInfo = Enums.TweenInfo,
+	ColorSequence = Enums.ColorSequence,
+	NumberSequence = Enums.NumberSequence,
+	NumberRange = Enums.NumberRange,
+	UDim = Enums.UDim,
+	UDim2 = Enums.UDim2,
+	Region3 = Enums.Region3,
+	PhysicalProperties = Enums.PhysicalProperties,
+	Rect = Enums.Rect,
 }
+
 local TBL_POOL_SIZE = 100
 
 local writeu8 = buffer.writeu8 
@@ -49,8 +58,7 @@ local readf64 = buffer.readf64
 local readstring = buffer.readstring
 local bufferCopy = buffer.copy
 local stringLen = string.len
-local stringSub = string.sub 
-local mathRound = math.round
+local stringSub = string.sub
 local mathFrexp = math.frexp 
 local mathFloor = math.floor 
 local mathHuge = math.huge 
@@ -238,6 +246,30 @@ end
 	writei8(buff, offset + 4, y * FX8_ROT_SCALE)
 	writei8(buff, offset + 5, z * FX8_ROT_SCALE)
 	return 6
+end
+
+@native local function encodeCFrameI16FX16(buff: buffer, offset: number, arg: SchemaArg, value: CFrame): number
+	local pos = value.Position
+	local x, y, z = value:ToEulerAnglesXYZ()
+	writei16(buff, offset, pos.X)
+	writei16(buff, offset + 2, pos.Y)
+	writei16(buff, offset + 4, pos.Z)
+	writei16(buff, offset + 6, x * FX16_ROT_SCALE)
+	writei16(buff, offset + 8, y * FX16_ROT_SCALE)
+	writei16(buff, offset + 10, z * FX16_ROT_SCALE)
+	return 12
+end
+
+@native local function decodeCFrameI16FX16(buff: buffer, offset: number, arg: SchemaArg): (CFrame, number)
+	local pos = Vector3.new(
+		readi16(buff, offset),
+		readi16(buff, offset + 2),
+		readi16(buff, offset + 4)
+	)
+	local x = readi16(buff, offset + 6) / FX16_ROT_SCALE
+	local y = readi16(buff, offset + 8) / FX16_ROT_SCALE
+	local z = readi16(buff, offset + 10) / FX16_ROT_SCALE
+	return CFrame.Angles(x, y, z) + pos, 12
 end
 
 @native local function encodeCFrameFX16(buff: buffer, offset: number, arg: SchemaArg, value: CFrame): number
@@ -430,6 +462,21 @@ end
 	return 3
 end
 
+@native local function encodeVector3I16(buff: buffer, offset: number, arg: SchemaArg, value: Vector3): number
+	writei16(buff, offset, value.X)
+	writei16(buff, offset + 2, value.Y)
+	writei16(buff, offset + 4, value.Z)
+	return 6
+end
+
+@native local function decodeVector3I16(buff: buffer, offset: number, arg: SchemaArg): (Vector3, number)
+	return Vector3.new(
+		readi16(buff, offset),
+		readi16(buff, offset + 2),
+		readi16(buff, offset + 4)
+	), 6
+end
+
 @native local function encodeVector3FX16(buff: buffer, offset: number, arg: SchemaArg, value: Vector3): number
 	writei16(buff, offset, value.X * FX16_SCALE)
 	writei16(buff, offset + 2, value.Y * FX16_SCALE)
@@ -473,10 +520,11 @@ end
 end
 
 @native local function decodeVector3F32(buff: buffer, offset: number, arg: SchemaArg): (Vector3, number)
-	local x = readf32(buff, offset)
-	local y = readf32(buff, offset + 4)
-	local z = readf32(buff, offset + 8)
-	return Vector3.new(x, y, z), 12
+	return Vector3.new(
+		readf32(buff, offset),
+		readf32(buff, offset + 4),
+		readf32(buff, offset + 8)
+	), 12
 end
 
 --vector2
@@ -484,6 +532,16 @@ end
 	writei8(buff, offset, value.X * FX8_SCALE)
 	writei8(buff, offset + 1, value.Y * FX8_SCALE)
 	return 2
+end
+
+@native local function encodeVector2I16(buff: buffer, offset: number, arg: SchemaArg, value: Vector2): number
+	writei16(buff, offset, value.X)
+	writei16(buff, offset + 2, value.Y)
+	return 4
+end
+
+@native local function decodeVector2I16(buff: buffer, offset: number, arg: SchemaArg): (Vector2, number)
+	return Vector2.new(readi16(buff, offset), readi16(buff, offset + 2)), 4
 end
 
 @native local function encodeVector2FX16(buff: buffer, offset: number, arg: SchemaArg, value: Vector2): number
@@ -554,9 +612,9 @@ end
 end
 
 @native local function encodeColor(buff: buffer, offset: number, arg: SchemaArg, value: Color3): number
-	writeu8(buff, offset, mathRound(value.R * 255))
-	writeu8(buff, offset + 1, mathRound(value.G * 255))
-	writeu8(buff, offset + 2, mathRound(value.B * 255))
+	writeu8(buff, offset, value.R * 255 + .5)
+	writeu8(buff, offset + 1, value.G * 255 + .5)
+	writeu8(buff, offset + 2, value.B * 255 + .5)
 	return 3
 end
 
@@ -564,7 +622,7 @@ end
 	local r = readu8(buff, offset)
 	local g = readu8(buff, offset + 1)
 	local b = readu8(buff, offset + 2)
-	return Color3.new(r / 255, g / 255, b / 255), 3
+	return Color3.fromRGB(r, g, b), 3
 end
 
 @native local function encodeBrickColor(buff: buffer, offset: number, arg: SchemaArg, value: BrickColor): number
@@ -603,9 +661,6 @@ end
 
 @native local function decodeBuffer(buff: buffer, offset: number, arg: SchemaArg): (buffer?, number)
 	local len = readu16(buff, offset)
-	if len > MAX_BUFFER_LEN then
-		return nil, 2
-	end
 	local newBuff = buffer.create(len)
 	bufferCopy(newBuff, 0, buff, offset + 2, len)
 	return newBuff, len + 2
@@ -694,26 +749,230 @@ end
 	return tweenInfo, 6
 end
 
-@native local function encodeBulkNumberU8Array(buff: buffer, offset: number, array: {number}): number
-	local ptr = offset
-	local arrayLen = #array
-	local mod = arrayLen % 4
-	local iters = (arrayLen - mod) / 4
-	local bytePtr = 1
+@native local function encodeColorSequence(buff: buffer, offset: number, arg: SchemaArg, value: ColorSequence)
+	:number
+	local keypoints = value.Keypoints
+	writeu8(buff, offset, #keypoints)
+	local ptr = offset + 1
 	
-	for i = 1, iters do
-		writeu32(buff, ptr, 
-				array[bytePtr] +
-				array[bytePtr + 1] * 256 +
-				array[bytePtr + 2] * 65536 +
-				array[bytePtr + 3] * 16777216
-		)
+	for _, kp in keypoints do
+		local color = kp.Value
+		writeu8(buff, ptr, kp.Time * 255 + .5)
+		writeu8(buff, ptr + 1, color.R * 255 + .5)
+		writeu8(buff, ptr + 2, color.G * 255 + .5)
+		writeu8(buff, ptr + 3, color.B * 255 + .5)
 		ptr += 4
-		bytePtr += 4
 	end
 	
-	for i = arrayLen - mod + 1, arrayLen do
-		writeu8(buff, ptr, array[i])
+	return ptr - offset
+end
+
+@native local function decodeColorSequence(buff: buffer, offset: number, arg: SchemaArg): (ColorSequence, number)
+	local len = readu8(buff, offset)
+	local ptr = offset + 1
+	local keypoints = table.create(len)
+	
+	for i = 1, len do
+		keypoints[i] = ColorSequenceKeypoint.new(
+			readu8(buff, ptr) / 255,
+			Color3.fromRGB(
+				readu8(buff, ptr + 1),
+				readu8(buff, ptr + 2),
+				readu8(buff, ptr + 3)
+			)
+		)
+		ptr += 4
+	end
+	return ColorSequence.new(keypoints), ptr - offset
+end
+
+@native local function encodeNumberSequence(buff: buffer, offset: number, arg: SchemaArg, value: NumberSequence)
+	:number
+	local keypoints = value.Keypoints
+	writeu8(buff, offset, #keypoints)
+	local ptr = offset + 1
+	
+	for _, kp in keypoints do
+		writeu8(buff, ptr, kp.Time * 255 + .5)
+		writeu8(buff, ptr + 1, kp.Value * 255 + .5)
+		writeu8(buff, ptr + 2, kp.Envelope * 255 + .5)
+		ptr += 3
+	end
+	return ptr - offset
+end
+
+@native local function decodeNumberSequence(buff: buffer, offset: number, arg: SchemaArg)
+	: (NumberSequence, number)
+	local len = readu8(buff, offset)
+	local ptr = offset + 1
+	local keypoints = table.create(len)
+	
+	for i = 1, len do
+		keypoints[i] = NumberSequenceKeypoint.new(
+			readu8(buff, ptr) / 255,
+			readu8(buff, ptr + 1) / 255,
+			readu8(buff, ptr + 2) / 255
+		)
+		ptr += 3
+	end
+	return NumberSequence.new(keypoints), ptr - offset
+end
+
+@native local function encodeNumberRange(buff: buffer, offset: number, arg: SchemaArg, value: NumberRange)
+	:number
+	writef32(buff, offset, value.Min)
+	writef32(buff, offset + 4, value.Max)
+	return 8
+end
+
+@native local function decodeNumberRange(buff: buffer, offset: number, arg: SchemaArg): (NumberRange, number)
+	return NumberRange.new(readf32(buff, offset), readf32(buff, offset + 4)), 8
+end
+
+@native local function encodeUDim(buff: buffer, offset: number, arg: SchemaArg, value: UDim): number
+	writei16(buff, offset, value.Scale * 1000)
+	writei16(buff, offset + 2, value.Offset)
+	return 4
+end
+
+@native local function decodeUDim(buff: buffer, offset: number, arg: SchemaArg): (UDim, number)
+	return UDim.new(readi16(buff, offset) / 1000, readi16(buff, offset + 2)), 4
+end
+
+@native local function encodeUDim2(buff: buffer, offset: number, arg: SchemaArg, value: UDim2): number
+	local x, y = value.X, value.Y
+	writei16(buff, offset, x.Scale * 1000)
+	writei16(buff, offset + 2, x.Offset)
+	writei16(buff, offset + 4, y.Scale * 1000)
+	writei16(buff, offset + 6, y.Offset)
+	return 8
+end
+
+@native local function decodeUDim2(buff: buffer, offset: number, arg: SchemaArg): (UDim2, number)
+	return UDim2.new(
+		readi16(buff, offset) / 1000,
+		readi16(buff, offset + 2),
+		readi16(buff, offset + 4) / 1000,
+		readi16(buff, offset + 6)
+		), 8
+end
+
+@native local function encodeRegion3(buff: buffer, offset: number, arg: SchemaArg, value: Region3): number
+	local halfSize = value.Size / 2
+	local pos = value.CFrame.Position
+	local min, max = pos - halfSize, pos + halfSize
+	writef32(buff, offset, min.X)
+	writef32(buff, offset + 4, min.Y)
+	writef32(buff, offset + 8, min.Z)
+	writef32(buff, offset + 12, max.X)
+	writef32(buff, offset + 16, max.Y)
+	writef32(buff, offset + 20, max.Z)
+	return 24
+end
+
+@native local function decodeRegion3(buff: buffer, offset: number, arg: SchemaArg): (Region3, number)
+	return Region3.new(
+		Vector3.new(
+			readf32(buff, offset),
+			readf32(buff, offset + 4),
+			readf32(buff, offset + 8)
+		),
+		Vector3.new(
+			readf32(buff, offset + 12),
+			readf32(buff, offset + 16),
+			readf32(buff, offset + 20)
+		)
+	), 24
+end
+
+@native local function encodePhysicalProperties(buff: buffer, offset: number, arg: SchemaArg, value: PhysicalProperties)
+	:number
+	writeu16(buff, offset, value.Density * 655.35)
+	writeu8(buff, offset + 2, value.Friction * 127.5)
+	writeu8(buff, offset + 3, value.Elasticity * 255)
+	writeu16(buff, offset + 4, value.FrictionWeight * 655.35)
+	writeu16(buff, offset + 6, value.ElasticityWeight * 655.35)
+	writeu8(buff, offset + 8, value.AcousticAbsorption * 255)
+	return 9
+end
+
+@native local function decodePhysicalProperties(buff: buffer, offset: number, arg: SchemaArg)
+	:(PhysicalProperties, number)
+	return PhysicalProperties.new(
+		readu16(buff, offset) / 655.35,
+		readu8(buff, offset + 2) / 127.5,
+		readu8(buff, offset + 3) / 255,
+		readu16(buff, offset + 4) / 655.35,
+		readu16(buff, offset + 6) / 655.35,
+		readu8(buff, offset + 8) / 255
+	), 9
+end
+
+@native local function encodeRect(buff: buffer, offset: number, arg: SchemaArg, value: Rect): number
+	local min, max = value.Min, value.Max
+	writef32(buff, offset, min.X)
+	writef32(buff, offset + 4, min.Y)
+	writef32(buff, offset + 8, max.X)
+	writef32(buff, offset + 12, max.Y)
+	return 16
+end
+
+@native local function decodeRect(buff: buffer, offset: number, arg: SchemaArg): (Rect, number)
+	return Rect.new(
+		readf32(buff, offset),
+		readf32(buff, offset + 4),
+		readf32(buff, offset + 8),
+		readf32(buff, offset + 12)
+	), 16
+end
+
+@native local function encodeBulkNumberU4Array(buff: buffer, offset: number, array: {number}): number
+	local ptr = offset
+	local arrayLen = #array
+	local mod = arrayLen % 2
+	local iters = (arrayLen - mod) / 2
+	local nibPtr = 1
+
+	for i = 1, iters do
+		writeu8(buff, ptr, array[nibPtr] + array[nibPtr + 1] * 16)
+		ptr += 1
+		nibPtr += 2
+	end
+	
+	if mod ~= 0 then
+		writeu8(buff, ptr, array[arrayLen])
+	end
+	return ptr - offset
+end
+
+@native local function decodeBulkNumberU4Array(buff: buffer, offset: number, arrayLen: number, tbl: {any}?)
+	:({number}, number)
+	local ptr = offset
+	local array = tbl or table.create(arrayLen)
+	local mod = arrayLen % 2
+	local iters = (arrayLen - mod) / 2
+	local nibPtr = 1
+	
+	for i = 1, iters do
+		local b = readu8(buff, ptr)
+		local n2 = b // 16
+		local n1 = b - n2 * 16
+		array[nibPtr] = n1
+		array[nibPtr + 1] = n2
+		ptr += 1
+		nibPtr += 2	
+	end
+
+	if mod ~= 0 then
+		array[arrayLen] = readu8(buff, ptr)
+	end
+	return array, ptr - offset
+end
+
+@native local function encodeBulkNumberU8Array(buff: buffer, offset: number, array: {number}): number
+	local ptr = offset
+	for _, val in array do
+		writeu8(buff, ptr, val)
 		ptr += 1
 	end
 	return ptr - offset
@@ -732,7 +991,7 @@ end
 		local b1 = b // 256
 		local b2 = b1 // 256
 		local b3 = b2 // 256		
-		array[bytePtr]     = b - b1 * 256
+		array[bytePtr] = b - b1 * 256
 		array[bytePtr + 1] = b1 - b2 * 256
 		array[bytePtr + 2] = b2 - b3 * 256
 		array[bytePtr + 3] = b3
@@ -1181,6 +1440,16 @@ end
 	return inst[ptr], 0
 end
 
+@native local function encodePlayer(buff: buffer, offset: number, arg: SchemaArg, value: Player): number
+	writef64(buff, offset, value.UserId or 0)
+	return 8
+end
+
+@native local function decodePlayer(buff: buffer, offset: number, arg: SchemaArg): (Player?, number)
+	local player = Players:GetPlayerByUserId(readf64(buff, offset))
+	return player, 8	
+end
+
 @native local function encodeAny(buff: buffer, offset: number, arg: SchemaArg, value: any, inst: {Instance}): number
 	local dataType = getDataType(value)
 	writeu8(buff, offset, dataType)
@@ -1198,8 +1467,65 @@ end
 		return nil, 1
 	end
 	local val, b = decode(buff, offset + bytes, arg, inst)
-	bytes += b
-	return val, bytes
+	return val, bytes + b
+end
+
+@native local function encodeOptional(buff: buffer, offset: number, arg: SchemaArg, value: any, inst: {Instance}?)
+	: number
+	local isNil = value == nil
+	local tag = isNil and 0 or 1
+	writeu8(buff, offset, tag)
+	if isNil then
+		return 1
+	end
+	
+	local valArg = arg[2]
+	local encode = encodeData[valArg] or encodeData[valArg[1]] :: (buffer, number, SchemaArg, any, {Instance}?) -> number
+	local bytes = encode(buff, offset + 1, valArg, value, inst)
+	return bytes + 1
+end
+
+@native local function decodeOptional(buff: buffer, offset: number, arg: SchemaArg, inst: {Instance}?)
+	: (any, number)
+	local isNil = readu8(buff, offset) == 0
+	if isNil then return nil, 1 end
+	
+	local valArg = arg[2]
+	local decode = decodeData[valArg] or decodeData[valArg[1]] :: (buffer, number, SchemaArg, {Instance}?) -> (any, number)
+	local val, b = decode(buff, offset + 1, valArg, inst)
+	return val, b + 1
+end
+
+@native local function encodeUnion(buff: buffer, offset: number, arg: SchemaArg, value: any, inst: {Instance}?)
+	: number
+	local dt = typeof(value)
+	local valArg = arg[dt]
+	local tag = dt ~= "table" and valArg or valArg[1]
+	writeu8(buff, offset, tag)
+	
+	local encode = encodeData[tag] :: (buffer, number, SchemaArg, any, {Instance}?) -> number
+	local bytes = encode(buff, offset + 1, valArg, value, inst)
+	return bytes + 1
+end
+
+@native local function decodeUnion(buff: buffer, offset: number, arg: SchemaArg, inst: {Instance}?): (any, number)
+	local tag = readu8(buff, offset)
+	local valArg = arg[tag]
+	local decode = decodeData[tag] :: (buffer, number, SchemaArg, {Instance}?) -> (any, number)
+	local val, b = decode(buff, offset + 1, valArg, inst)
+	return val, b + 1
+end
+
+@native local function encodeLiteral(buff: buffer, offset: number, arg: SchemaArg, value: Literal)
+	:number
+	local reverseMap = arg[3]
+	writeu8(buff, offset, reverseMap[value])
+	return 1
+end
+
+@native local function decodeLiteral(buff: buffer, offset: number, arg: SchemaArg): (Literal, number)
+	local map = arg[2]
+	return map[readu8(buff, offset)], 1
 end
 
 @native local function encodeArrayStatic(buff: buffer, offset: number, schema: SchemaArg, array: {any}, inst: {Instance})
@@ -1273,10 +1599,9 @@ end
 	end
 	
 	local arg = schema[2]
-	local decode = decodeData[arg] or decodeData[arg[1]] 
+	local decode = decodeData[arg] or decodeData[arg[1]] 	
 	:: (buffer, number, SchemaArg, {Instance}?) -> (any, number)
 	local array = table.create(len)
-
 	for i = 1, len do
 		local val, b = decode(buff, ptr, arg, inst)
 		ptr += b
@@ -1517,6 +1842,7 @@ end
 
 encodeData = {
 	[Enums.Start] = function() end,
+	[Enums.NumberU4] = encodeNumberU8,
 	[Enums.NumberU8] = encodeNumberU8,
 	[Enums.NumberU16] = encodeNumberU16,
 	[Enums.NumberU32] = encodeNumberU32,
@@ -1528,6 +1854,7 @@ encodeData = {
 	[Enums.NumberF64] = encodeNumberF64,
 
 	[Enums.CFrameFX8] = encodeCFrameFX8,
+	[Enums.CFrameI16FX16] = encodeCFrameI16FX16,
 	[Enums.CFrameFX16] = encodeCFrameFX16,
 	[Enums.CFrameF16] = encodeCFrameF16,
 	[Enums.CFrameF32Aligned] = encodeCFrameF32Aligned,
@@ -1535,11 +1862,13 @@ encodeData = {
 	[Enums.CFrameF32] = encodeCFrameF32,
 
 	[Enums.Vector3FX8] = encodeVector3FX8,
+	[Enums.Vector3I16] = encodeVector3I16,
 	[Enums.Vector3FX16] = encodeVector3FX16,
 	[Enums.Vector3F16] = encodeVector3F16,
 	[Enums.Vector3F32] = encodeVector3F32,
 
 	[Enums.Vector2FX8] = encodeVector2FX8,
+	[Enums.Vector2I16] = encodeVector2I16,
 	[Enums.Vector2FX16] = encodeVector2FX16,
 	[Enums.Vector2F16] = encodeVector2F16,
 	[Enums.Vector2F32] = encodeVector2F32,
@@ -1553,11 +1882,23 @@ encodeData = {
 	[Enums.Buffer] = encodeBuffer,
 	[Enums.EnumItem] = encodeEnumItem,
 	[Enums.Instance] = encodeInstance,
+	[Enums.Player] = encodePlayer,
 	[Enums.DateTime32] = encodeDateTime32,
 	[Enums.DateTime64] = encodeDateTime64,
 	[Enums.TweenInfo] = encodeTweenInfo,
+	[Enums.ColorSequence] = encodeColorSequence,
+	[Enums.NumberSequence] = encodeNumberSequence,
+	[Enums.NumberRange] = encodeNumberRange,
+	[Enums.UDim] = encodeUDim,
+	[Enums.UDim2] = encodeUDim2,
+	[Enums.Region3] = encodeRegion3,
+	[Enums.PhysicalProperties] = encodePhysicalProperties,
+	[Enums.Rect] = encodeRect,
 
 	[Enums.Any] = encodeAny,
+	[Enums.Optional] = encodeOptional,
+	[Enums.Union] = encodeUnion,
+	[Enums.Literal] = encodeLiteral,
 	[Enums.ArrayStatic] = encodeArrayStatic,
 	[Enums.Array] = encodeArray,
 	[Enums.ArrayDynamic] = encodeArrayDynamic,
@@ -1565,6 +1906,7 @@ encodeData = {
 	[Enums.Dict] = encodeDict,
 	[Enums.DictDynamic] = encodeDictDynamic,
 	
+	[Enums.FastNumberU4Array] = encodeBulkNumberU4Array,
 	[Enums.FastNumberU8Array] = encodeBulkNumberU8Array,
 	[Enums.FastNumberI32Array] = encodeBulkNumberI32Array,
 	[Enums.FastNumberF32Array] = encodeBulkNumberF32Array,
@@ -1584,6 +1926,7 @@ encodeData = {
 
 decodeData = {
 	[Enums.Start] = function() end,
+	[Enums.NumberU4] = decodeNumberU8,
 	[Enums.NumberU8] = decodeNumberU8,
 	[Enums.NumberU16] = decodeNumberU16,
 	[Enums.NumberU32] = decodeNumberU32,
@@ -1595,6 +1938,7 @@ decodeData = {
 	[Enums.NumberF64] = decodeNumberF64,
 
 	[Enums.CFrameFX8] = decodeCFrameFX8,
+	[Enums.CFrameI16FX16] = decodeCFrameI16FX16,
 	[Enums.CFrameFX16] = decodeCFrameFX16,
 	[Enums.CFrameF16] = decodeCFrameF16,
 	[Enums.CFrameF32Aligned] = decodeCFrameF32Aligned,
@@ -1602,11 +1946,13 @@ decodeData = {
 	[Enums.CFrameF32] = decodeCFrameF32,
 
 	[Enums.Vector3FX8] = decodeVector3FX8,
+	[Enums.Vector3I16] = decodeVector3I16,
 	[Enums.Vector3FX16] = decodeVector3FX16,
 	[Enums.Vector3F16] = decodeVector3F16,
 	[Enums.Vector3F32] = decodeVector3F32,
 
 	[Enums.Vector2FX8] = decodeVector2FX8,
+	[Enums.Vector2I16] = decodeVector2I16,
 	[Enums.Vector2FX16] = decodeVector2FX16,
 	[Enums.Vector2F16] = decodeVector2F16,
 	[Enums.Vector2F32] = decodeVector2F32,
@@ -1620,11 +1966,23 @@ decodeData = {
 	[Enums.Buffer] = decodeBuffer,
 	[Enums.EnumItem] = decodeEnumItem,
 	[Enums.Instance] = decodeInstance,
+	[Enums.Player] = decodePlayer,
 	[Enums.DateTime32] = decodeDateTime32,
 	[Enums.DateTime64] = decodeDateTime64,
 	[Enums.TweenInfo] = decodeTweenInfo,
+	[Enums.ColorSequence] = decodeColorSequence,
+	[Enums.NumberSequence] = decodeNumberSequence,
+	[Enums.NumberRange] = decodeNumberRange,
+	[Enums.UDim] = decodeUDim,
+	[Enums.UDim2] = decodeUDim2,
+	[Enums.Region3] = decodeRegion3,
+	[Enums.PhysicalProperties] = decodePhysicalProperties,
+	[Enums.Rect] = decodeRect,
 
 	[Enums.Any] = decodeAny,
+	[Enums.Optional] = decodeOptional,
+	[Enums.Union] = decodeUnion,
+	[Enums.Literal] = decodeLiteral,
 	[Enums.ArrayStatic] = decodeArrayStatic,
 	[Enums.Array] = decodeArray,
 	[Enums.ArrayDynamic] = decodeArrayDynamic,
@@ -1632,6 +1990,7 @@ decodeData = {
 	[Enums.Dict] = decodeDict,
 	[Enums.DictDynamic] = decodeDictDynamic,
 	
+	[Enums.FastNumberU4Array] = decodeBulkNumberU4Array,
 	[Enums.FastNumberU8Array] = decodeBulkNumberU8Array,
 	[Enums.FastNumberI32Array] = decodeBulkNumberI32Array,
 	[Enums.FastNumberF32Array] = decodeBulkNumberF32Array,
@@ -1655,5 +2014,6 @@ local Serialize = {
 	enumItems = enumItems,
 	enumItemsByEnum = enumItemsByEnum,
 }
+
 
 return Serialize

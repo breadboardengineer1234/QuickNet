@@ -1,6 +1,6 @@
 --!optimize 2
 
---[QuickNet] v0.2.0
+--[QuickNet] v0.3.0
 --author: u5eful
 
 --services--
@@ -18,21 +18,21 @@ local Types = require(script.Types)
 local SOURCE = "[QuickNet]"
 local DEBUG_MODE = true --set to false for production
 local RATE_LIMIT = {Max = 120, Time = 1} --adjust this
-local MAX_CALLS_PER_FRAME = 100000 --decrease this
+local MAX_CALLS_PER_FRAME = 100000 --adjust this
 local INVOKE_TIMEOUT = 10
 local MAX_INVOKE_TIMEOUT = 60
-local MAX_PAYLOAD_SIZE = 200000000000 --decrease this
+local MAX_PAYLOAD_SIZE = 200000000000 --adjust this (recommended 5-50K)
 local MAX_ARGS = 30
 local ERROR_MSGS = {
 	MaxArgs = "Number of arguments exceeds max",
 	InvalidInternalArg1 = "invalid internal argument 1",
 	InvalidInternalArg2 = "invalid internal argument 2",
-	Unreliable1 = " Network function cannot be unreliable",
-	Response1 = " Unreliable event does not support response",
+	Unreliable1 = "Network function cannot be unreliable",
+	Response1 = "Unreliable event does not support response",
 }
 local MAX_REQ_ID_RANGE = 65536
-local CLIENT_TEMP_BUFF_SIZE = 20000000 --adjust this
-local SERVER_TEMP_BUFF_SIZE = 2000000 --adjust this
+local CLIENT_TEMP_BUFF_SIZE = 20000000 --adjust this (recommended 1-5M)
+local SERVER_TEMP_BUFF_SIZE = 2000000 --adjust this (recommended 500K-1M)
 local REMOTE_EVENT = 0
 local REMOTE_FUNCTION = 1
 local INVOKE_FAIL_ID = 0
@@ -61,7 +61,6 @@ end
 local isServer = RunService:IsServer()
 local getSchema = Parser.getSchema
 local Net = {}
-local NetworkObject = {}
 local encodeData = Serialize.encode
 local decodeData = Serialize.decode
 local eventsInfo: {[number]: NetworkInfo<(), ()>} = {}
@@ -86,7 +85,6 @@ local serverQueueUnr: {[Player]: Queue} = {}
 local internalRemote: RemoteEvent
 local internalUnreliable: UnreliableRemoteEvent
 local maxPayloadSize = MAX_PAYLOAD_SIZE
-
 local tablePool = table.create(TBL_POOL_SIZE)
 
 --private--
@@ -107,7 +105,7 @@ end
 end
 
 local function errorMsg(msg: string)
-	error(SOURCE.." "..msg)
+	error(SOURCE.." "..msg, 3)
 end
 
 local function warnMsg(msg: string, bypassDebugMode: boolean?)
@@ -192,7 +190,7 @@ end
 end
 
 @native local function processQueueClient()
-	if clientQueueUnr.QueueSize > 0 then --unreliable
+	if clientQueueUnr.QueueSize >= 1 then --unreliable
 		local buff = getBatchedBuffer(clientQueueUnr)
 		local inst = clientQueueUnr.Instances
 		local hasInst = #inst > 0
@@ -204,7 +202,7 @@ end
 		flushQueue(clientQueueUnr, hasInst)
 	end
 	
-	if clientQueue.QueueSize > 0 then --normal
+	if clientQueue.QueueSize >= 1 then --normal
 		local buff = getBatchedBuffer(clientQueue)
 		local inst = clientQueue.Instances
 		local hasInst = #inst > 0
@@ -454,8 +452,8 @@ end
 		warnMsg(ERROR_MSGS.InvalidInternalArg1)
 		return
 	end
-	local buffLen = buffer.len(buff)
-	if buffLen > maxPayloadSize then
+
+	if buffer.len(buff) > maxPayloadSize then
 		warnMsg(player.Name.." exceeded max packet size, dropping calls")
 		return
 	end
@@ -673,7 +671,7 @@ local function createObjServer<A..., B...>(info: NetworkInfo<A..., B...>): Netwo
 	local queue = serverQueue
 	local isUnreliable = false
 	
-	function Object:SetRateLimit(max: number, timeWindow: number)
+	function Object:SetRateLimit(max: number, timeWindow: number): NetworkEvent<A...>
 		info.RateLimit.Max = max
 		info.RateLimit.Time = timeWindow
 		return Object
@@ -681,7 +679,7 @@ local function createObjServer<A..., B...>(info: NetworkInfo<A..., B...>): Netwo
 	
 	function Object:Unreliable(): NetworkEvent<A...>
 		if networkType == REMOTE_FUNCTION then
-			error(SOURCE..ERROR_MSGS.Unreliable1, 2)
+			errorMsg(ERROR_MSGS.Unreliable1)
 			return
 		end
 		queue = serverQueueUnr
@@ -691,7 +689,7 @@ local function createObjServer<A..., B...>(info: NetworkInfo<A..., B...>): Netwo
 	
 	function Object:Response(...: B...): NetworkFunction<A..., B...>
 		if isUnreliable then
-			error(SOURCE..ERROR_MSGS.Response1, 2)
+			errorMsg(SOURCE..ERROR_MSGS.Response1)
 		end
 		Object.OnServerInvoke = nil
 		Object.OnServerInvokeAsync = nil
@@ -757,7 +755,7 @@ local function createObjClient<A..., B...>(info: NetworkInfo<A..., B...>): Netwo
 	local Object = {}
 	Object.OnClientEvent = {}
 	
-	function Object:SetRateLimit(max: number, timeWindow: number)
+	function Object:SetRateLimit(max: number, timeWindow: number): NetworkEvent<A...>
 		info.RateLimit.Max = max
 		info.RateLimit.Time = timeWindow
 		return Object
@@ -774,7 +772,7 @@ local function createObjClient<A..., B...>(info: NetworkInfo<A..., B...>): Netwo
 	
 	function Object:Unreliable(): NetworkEvent<A...>
 		if networkType == REMOTE_FUNCTION then
-			error(SOURCE..ERROR_MSGS.Unreliable1, 2)
+			errorMsg(SOURCE..ERROR_MSGS.Unreliable1)
 			return
 		end
 		isUnreliable = true
@@ -784,7 +782,7 @@ local function createObjClient<A..., B...>(info: NetworkInfo<A..., B...>): Netwo
 	
 	function Object:Response(...: B...): NetworkFunction<A..., B...>
 		if isUnreliable then
-			error(SOURCE..ERROR_MSGS.Response1, 2)
+			errorMsg(SOURCE..ERROR_MSGS.Response1)
 			return
 		end
 		info.ResponseSchema = getSchema(...)

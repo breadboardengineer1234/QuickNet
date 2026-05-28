@@ -1,0 +1,49 @@
+struct Entity {
+	id: u8,
+	x: u8,
+	y: u8,
+	z: u8,
+	orientation: u8,
+	animation: u8
+}
+
+event Entities {
+	From: Client,
+	Type: Reliable,
+	Call: SingleSync,
+	Data: Entity[0..1000]
+}
+
+event Booleans {
+	From: Client,
+	Type: Reliable,
+	Call: SingleSync,
+	Data: boolean[0..1000],
+}
+
+event Strings {
+	From: Client,
+	Type: Reliable,
+	Call: SingleSync,
+	Data: string[0..500],
+}
+
+event Numbers {
+	From: Client,
+	Type: Reliable,
+	Call: SingleSync,
+	Data: u8[0..2000],
+}
+
+event Dictionary {
+	From: Client,
+	Type: Reliable,
+	Call: SingleSync,
+	Data: {[string]: u8},
+}
+
+function RemoteFunction {
+	Yield: SingleSync,
+	Data: u8[0..500],
+	Return: boolean[0..500]
+}

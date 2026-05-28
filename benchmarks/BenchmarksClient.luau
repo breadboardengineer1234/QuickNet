@@ -2,6 +2,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
 local Stats = game:GetService("Stats")
 local Defs = require(script.Parent.Definitions)
+local Warp = require(ReplicatedStorage.Warp).Client()
 
 local methods = {
 	QuickNet = "FireServer",
@@ -10,11 +11,14 @@ local methods = {
 	ByteNet = "send",
 	Jolt = "Fire",
 	Blink = "Fire",
+	VNet = "send",
+	NetRay = "Fire",
 }
 
 local functionMethods = {
 	QuickNet = "InvokeServer",
 	Blink = "Invoke",
+	NetRay = "Call",
 }
 
 local events = {
@@ -24,6 +28,8 @@ local events = {
 		Strings = Defs.strings1, 
 		Numbers = Defs.numbers1,
 		Dict = Defs.dict1,
+		Instance = Defs.testInst,
+		ChangingNumbers = Defs.changingNumbers1,
 	},
 
 	Packet = {
@@ -40,6 +46,8 @@ local events = {
 		Strings = Defs.strings3,
 		Numbers = Defs.numbers3,
 		Dict = Defs.dict3,
+		
+		Instance = Defs.bool3,
 	},
 
 	ByteNet = {
@@ -64,8 +72,32 @@ local events = {
 		Strings = Defs.strings6,
 		Numbers = Defs.numbers6,
 		Dict = Defs.dict6,
-	}
+	},
 	
+	Warp = {
+		Booleans = {},
+		Entities = {},
+		Strings = {},
+		Numbers = {},
+		Dict = {},
+		ChangingNumbers = {},
+	},
+	
+	VNet = {
+		Booleans = Defs.bool8,
+		Entities = Defs.entities8,
+		Strings = Defs.strings8,
+		Numbers = Defs.numbers8,
+		Dict = Defs.dict8,
+	},
+	
+	NetRay = {
+		Booleans = Defs.bool9,
+		Entities = Defs.entities9,
+		Strings = Defs.strings9,
+		Numbers = Defs.numbers9,
+		Dict = Defs.dict9,
+	}
 }
 
 local functions = {
@@ -75,6 +107,10 @@ local functions = {
 	
 	Blink = {
 		RemoteFunction = Defs.remoteFunction2,
+	},
+	
+	NetRay = {
+		RemoteFunction = Defs.remoteFunction3,
 	}
 }
 
@@ -94,10 +130,10 @@ local function getEntitiesData()
 	return array
 end
 
-local function getNumbersData()
+local function getNumbersData(amount: number)
 	local nums = {}
-	for i = 1, 2000 do
-		table.insert(nums, math.random(1, 255))
+	for i = 1, amount do
+		nums[i] = math.random(0, 255)
 	end
 	return nums
 end
@@ -111,21 +147,12 @@ local function getDictData()
 	return dict
 end
 
-local function getRemoteFunctionData()
-	local nums = {}
-	for i = 1, 500 do
-		nums[i] = math.random(0, 255)
-	end
-	return nums
-end
-
 local testData = {
 	Booleans = table.create(1000, true),
 	Entities = getEntitiesData(),
 	Strings = table.create(500, "Hello"),
-	Numbers = getNumbersData(),
+	Numbers = getNumbersData(2000),
 	Dict = getDictData(),
-	RemoteFunction = getRemoteFunctionData(),
 }
 
 --dont use deltaTime it doesnt show below 15 fps
@@ -134,10 +161,13 @@ local function startTest(networkName: string, testName: string, firesPerFrame: n
 	local methodName = methods[networkName]
 	local event = events[networkName][testName]
 	local fire = event[methodName]
-	local data = testData[testName]
+	local data = testData[testName]	
 	local isByteNet = networkName == "ByteNet"
-	local isBlink = networkName == "Blink"	
-	local dotCall = isByteNet or isBlink
+	local isBlink = networkName == "Blink"
+	local isWarp = networkName == "Warp"
+	local isVNet = networkName == "VNet"
+	local isNetRay = networkName == "NetRay"
+	local dotCall = isByteNet or isBlink or isVNet or isNetRay
 
 	task.wait(3)
 	local numFrames = 0
@@ -147,9 +177,14 @@ local function startTest(networkName: string, testName: string, firesPerFrame: n
 
 	local conn
 	conn = RunService.PostSimulation:Connect(function()
+		--data = getNumbersData(2000)
 		if dotCall then
 			for i = 1, firesPerFrame do
 				fire(data)
+			end
+		elseif isWarp then
+			for i = 1, firesPerFrame do
+				Warp.Fire(testName, true, data)
 			end
 		else
 			for i = 1, firesPerFrame do
@@ -181,10 +216,11 @@ local function startFunction(networkName: string, testName: string, firesPerFram
 	local methodName = functionMethods[networkName]
 	local func = functions[networkName][testName]
 	local invoke = func[methodName]
-	local data = testData[testName]
+	local data = getNumbersData(500)
 	local isByteNet = networkName == "ByteNet"
-	local isBlink = networkName == "Blink"	
-	local dotCall = isByteNet or isBlink
+	local isBlink = networkName == "Blink"
+	local isNetRay = networkName == "NetRay"
+	local dotCall = isByteNet or isBlink or isNetRay
 
 	task.wait(3)
 	local numFrames = 0
@@ -227,3 +263,7 @@ return {
 	start = startTest,
 	startFunction = startFunction,
 }
+
+
+
+

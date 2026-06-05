@@ -26,7 +26,7 @@ QuickNet's high performance does not come at the cost of accessibility. QuickNet
 * Fixed instance pointer bug for nil instances on receiving end
 * Improved debug message for response events
 * Removed some unnecessary code
-* 
+
 ### v0.3.0 (5/16/26)
 * Added optional types via the data.optional method. Optional types have significantly better performance than Any types
 * Added union types via the data.union and data.unionMany methods. Union types have slightly better performance than Any types for primitives, but significantly better performance for table types

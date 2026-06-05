@@ -1,6 +1,6 @@
 --!optimize 2
 
---[QuickNet] v0.3.0
+--[QuickNet] v0.3.1
 --author: u5eful
 
 --services--
@@ -22,9 +22,7 @@ local MAX_CALLS_PER_FRAME = 100000 --adjust this
 local INVOKE_TIMEOUT = 10
 local MAX_INVOKE_TIMEOUT = 60
 local MAX_PAYLOAD_SIZE = 200000000000 --adjust this (recommended 5-50K)
-local MAX_ARGS = 30
 local ERROR_MSGS = {
-	MaxArgs = "Number of arguments exceeds max",
 	InvalidInternalArg1 = "invalid internal argument 1",
 	InvalidInternalArg2 = "invalid internal argument 2",
 	Unreliable1 = "Network function cannot be unreliable",
@@ -207,9 +205,9 @@ end
 		local inst = clientQueue.Instances
 		local hasInst = #inst > 0
 		if hasInst then
-		internalRemote:FireServer(buff, inst)
+			internalRemote:FireServer(buff, inst)
 		else
-		internalRemote:FireServer(buff)
+			internalRemote:FireServer(buff)
 		end
 		flushQueue(clientQueue, hasInst)
 	end		
@@ -260,8 +258,9 @@ end
 		buffer.writeu16(buff, offset + bytes, reqId)
 		bytes += 2
 	end
-	local inst = queue.Instances
+	
 	if schema then
+		local inst = queue.Instances
 		for i, arg in schema do
 			local value = args[i]
 			local encode = encodeData[arg] or encodeData[arg[1]] 
@@ -293,17 +292,6 @@ local function getEventId(name: string): number?
 		errorMsg("unable to get action id for "..name)
 	end
 	return id
-end
-
-@native local function validateArgs(schema: {SchemaArg}?, args: {any}): boolean
-	if not schema then
-		return true
-	end
-	if #args > MAX_ARGS then
-		warnMsg(ERROR_MSGS.MaxArgs)
-		return false
-	end
-	return true
 end
 
 @native local function checkRateLimit(player: Player, name: string, rateLimitConfig: {Max: number, Time: number})
@@ -463,7 +451,7 @@ end
 			warnMsg(ERROR_MSGS.InvalidInternalArg2)
 			return
 		end
-		inst[#inst + 1] = 1 --instance pointer
+		inst.pointer = 1
 	end
 	local numCalls = buffer.readu16(buff, 0)
 	local offset = 2
@@ -493,10 +481,9 @@ end
 			offset += 2
 		end
 		local args, bytesRead = getArgs(buff, offset, schema, inst)
-		offset += bytesRead
-		local valid = validateArgs(schema, args)	
+		offset += bytesRead	
 		local rateLimited = checkRateLimit(player, name, info.RateLimit)
-		if not valid or rateLimited then
+		if rateLimited then
 			if isRemoteFunction then
 				queueEvent(serverQueue[player], nil, nil, INVOKE_FAIL_ID, reqId, networkType)
 			end
@@ -579,7 +566,7 @@ end
 
 @native local function remoteListenerClient(buff: buffer, inst: {Instance}?)
 	if inst then
-		inst[#inst + 1] = 1
+		inst.pointer = 1
 	end
 	local numCalls = buffer.readu16(buff, 0)
 	local offset = 2
@@ -746,9 +733,9 @@ local function createObjServer<A..., B...>(info: NetworkInfo<A..., B...>): Netwo
 	return Object
 end
 
-local function timeout(reqId: number, seconds: number)
+local function timeout(reqId: number, seconds: number, name: string)
 	resumeInvokeThread(reqId)
-	warnMsg("Response "..reqId.." timed out after "..seconds.."s", true)
+	warnMsg("Response for "..name.." timed out after "..seconds.."s", true)
 end
 
 local function createObjClient<A..., B...>(info: NetworkInfo<A..., B...>): NetworkEvent<A...>
@@ -795,7 +782,7 @@ local function createObjClient<A..., B...>(info: NetworkInfo<A..., B...>): Netwo
 			resumeInvokeThread(reqId, true, nil)
 
 			local seconds = info.ResponseTimeout
-			local someTask = task.delay(seconds, timeout, reqId, seconds)
+			local someTask = task.delay(seconds, timeout, reqId, seconds, name)
 			local cor = coroutine.running()
 			reqThreads[reqId] = cor
 			timeoutTasks[reqId] = someTask

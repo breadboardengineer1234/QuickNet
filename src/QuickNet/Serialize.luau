@@ -1433,10 +1433,9 @@ end
 end
 
 @native local function decodeInstance(buff: buffer, offset: number, arg: SchemaArg, inst: {Instance})
-	: (Instance, number)
-	local ptrIdx = #inst
-	local ptr = inst[ptrIdx]
-	inst[ptrIdx] += 1
+	: (Instance, number)	
+	local ptr = inst.pointer
+	inst.pointer += 1
 	return inst[ptr], 0
 end
 

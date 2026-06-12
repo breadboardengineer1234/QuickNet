@@ -1,6 +1,6 @@
 --!optimize 2
 
---[QuickNet] v0.3.1
+--[QuickNet] v0.3.2
 --author: u5eful
 
 --services--
@@ -862,7 +862,7 @@ local function start()
 			recycleBuffer(queue.TempBuffer)
 			recycleBuffer(queueUnr.TempBuffer)
 			serverQueue[player] = nil
-			queueUnr[player] = nil
+			serverQueueUnr[player] = nil
 			rateLimitInfo[player] = nil
 		end)
 		

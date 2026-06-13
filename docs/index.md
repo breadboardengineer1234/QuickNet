@@ -22,6 +22,9 @@ QuickNet's high performance does not come at the cost of accessibility. QuickNet
 - [Quickstart](quickstart.md)
 
 ## Updates
+### v0.3.2 (6/13/26)
+* Fixed small memory leak for unreliable events
+
 ### v0.3.1 (6/5/26)
 * Fixed instance pointer bug for nil instances on receiving end
 * Improved debug message for response events

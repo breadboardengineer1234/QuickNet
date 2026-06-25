@@ -1,6 +1,6 @@
 --!optimize 2
 
---[QuickNet] v0.3.2
+--[QuickNet] v0.3.3
 --author: u5eful
 
 --services--
@@ -555,7 +555,10 @@ end
 	local cor = reqThreads[reqId]
 	reqThreads[reqId] = nil
 	if cor and coroutine.status(cor) ~= "dead" then
-		coroutine.resume(cor, ...)
+		local ok, err = coroutine.resume(cor, ...)
+		if not ok then
+			warnMsg(err, true)
+		end
 	end
 	local timeoutTask = timeoutTasks[reqId]
 	timeoutTasks[reqId] = nil

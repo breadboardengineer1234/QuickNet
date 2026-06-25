@@ -22,6 +22,9 @@ QuickNet's high performance does not come at the cost of accessibility. QuickNet
 - [Quickstart](quickstart.md)
 
 ## Updates
+### v0.3.3 (6/25/26)
+* Fixed client side error swallowing in the calling thread for remote functions
+
 ### v0.3.2 (6/13/26)
 * Fixed small memory leak for unreliable events
 

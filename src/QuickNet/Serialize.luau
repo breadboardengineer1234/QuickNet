@@ -1,4 +1,5 @@
 --!optimize 2
+
 local Players = game:GetService("Players")
 
 local Types = require(script.Parent.Types)
@@ -35,8 +36,11 @@ local DYNAMIC_DEFAULTS = {
 	PhysicalProperties = Enums.PhysicalProperties,
 	Rect = Enums.Rect,
 }
+local ENUM_NIL = Enums.Nil
+local ENUM_ARRAYDYNAMIC = Enums.ArrayDynamic
 
 local TBL_POOL_SIZE = 100
+local tablePool = table.create(TBL_POOL_SIZE)
 
 local writeu8 = buffer.writeu8 
 local writeu16 = buffer.writeu16 
@@ -56,18 +60,10 @@ local readi32 = buffer.readi32
 local readf32 = buffer.readf32 
 local readf64 = buffer.readf64 
 local readstring = buffer.readstring
-local bufferCopy = buffer.copy
 local stringLen = string.len
 local stringSub = string.sub
 local mathFrexp = math.frexp 
-local mathFloor = math.floor 
-local mathHuge = math.huge 
-
-local tablePool = table.create(TBL_POOL_SIZE)
-
-for i = 1, TBL_POOL_SIZE do
-	tablePool[i] = {}
-end
+local mathFloor = math.floor  
 
 @native local function getTable(): {any}
 	local poolIdx = #tablePool
@@ -98,11 +94,11 @@ end
 
 @native local function getDataType(value: any): number?
 	local generalType = typeof(value)
-	local dataType = DYNAMIC_DEFAULTS[generalType] or Enums.Nil
+	local dataType = DYNAMIC_DEFAULTS[generalType] or ENUM_NIL
 
 	if generalType == "table" then
 		if isArray(value) then
-			dataType = Enums.ArrayDynamic
+			dataType = ENUM_ARRAYDYNAMIC
 		end
 	end
 	return dataType
@@ -146,7 +142,7 @@ end
 	if exponent == 0 then
 		return 0
 	elseif exponent == 31 then
-		return sign * mathHuge
+		return sign * math.huge
 	end
 
 	local normalized = 1 + mantissa / 1024
@@ -655,14 +651,14 @@ end
 @native local function encodeBuffer(buff: buffer, offset: number, arg: SchemaArg, value: buffer): number
 	local len = buffer.len(value)
 	writeu16(buff, offset, len)
-	bufferCopy(buff, offset + 2, value, 0, len)
+	buffer.copy(buff, offset + 2, value, 0, len)
 	return len + 2
 end
 
 @native local function decodeBuffer(buff: buffer, offset: number, arg: SchemaArg): (buffer?, number)
 	local len = readu16(buff, offset)
 	local newBuff = buffer.create(len)
-	bufferCopy(newBuff, 0, buff, offset + 2, len)
+	buffer.copy(newBuff, 0, buff, offset + 2, len)
 	return newBuff, len + 2
 end
 
@@ -762,8 +758,7 @@ end
 		writeu8(buff, ptr + 2, color.G * 255 + .5)
 		writeu8(buff, ptr + 3, color.B * 255 + .5)
 		ptr += 4
-	end
-	
+	end	
 	return ptr - offset
 end
 
@@ -1538,7 +1533,7 @@ end
 	end
 	
 	for idx, arg: SchemaArg in schema[2] do
-		local encode = encodeData[arg] or encodeData[arg[1]] 
+		local encode = (encodeData[arg] or encodeData[arg[1]])
 		:: (buffer, number, SchemaArg, any, {Instance}?) -> number
 		ptr += encode(buff, ptr, arg, array[idx], inst)
 	end
@@ -1558,7 +1553,7 @@ end
 	
 	local array = {}
 	for i, arg: SchemaArg in data do
-		local decode = decodeData[arg] or decodeData[arg[1]] 
+		local decode = (decodeData[arg] or decodeData[arg[1]])
 		:: (buffer, number, SchemaArg, {Instance}?) -> (any, number)
 		local val, b = decode(buff, ptr, arg, inst)
 		ptr += b
@@ -1580,7 +1575,7 @@ end
 	end
 	
 	local arg = schema[2]
-	local encode = encodeData[arg] or encodeData[arg[1]] :: (buffer, number, SchemaArg, any, {Instance}?) -> number
+	local encode = (encodeData[arg] or encodeData[arg[1]]) :: (buffer, number, SchemaArg, any, {Instance}?) -> number
 	for i, value in array do
 		ptr += encode(buff, ptr, arg, value, inst)
 	end
@@ -1598,7 +1593,7 @@ end
 	end
 	
 	local arg = schema[2]
-	local decode = decodeData[arg] or decodeData[arg[1]] 	
+	local decode = (decodeData[arg] or decodeData[arg[1]])
 	:: (buffer, number, SchemaArg, {Instance}?) -> (any, number)
 	local array = table.create(len)
 	for i = 1, len do
@@ -1635,7 +1630,7 @@ end
 	for i = 1, len do
 		local dataType = readu8(buff, ptr)
 		ptr += 1
-		local decode = decodeData[dataType] or decodeData[Enums.Nil] 
+		local decode = (decodeData[dataType] or decodeData[Enums.Nil])
 		:: (buffer, number, SchemaArg, {Instance}?) -> (any, number)
 		local val, b = decode(buff, ptr, schema, inst)
 		ptr += b
@@ -1661,7 +1656,7 @@ end
 		idx += 1
 		local arg = data[idx]
 		local val = dict[key]
-		local encode = encodeData[arg] or encodeData[arg[1]] :: 
+		local encode = (encodeData[arg] or encodeData[arg[1]]) :: 
 		(buffer, number, SchemaArg, any, {Instance}?) -> number
 		ptr += encode(buff, ptr, arg, val, inst)
 	end
@@ -1684,7 +1679,7 @@ end
 	
 	local dict = table.clone(template)	
 	for i, arg in data do
-		local decode = decodeData[arg] or decodeData[arg[1]] 
+		local decode = (decodeData[arg] or decodeData[arg[1]])
 		:: (buffer, number, SchemaArg, {Instance}?) -> (any, number)
 		local val, b = decode(buff, ptr, arg, inst)
 		ptr += b
@@ -1707,7 +1702,7 @@ end
 		ptr += bytes
 	else
 		local keyArg = schema[2]
-		local encodeKey = encodeData[keyArg] or encodeData[keyArg[1]] 
+		local encodeKey = (encodeData[keyArg] or encodeData[keyArg[1]])
 		:: (buffer, number, SchemaArg, any, {Instance}?) -> number
 		for key, val in dict do
 			ptr += encodeKey(buff, ptr, keyArg, key, inst)
@@ -1745,7 +1740,7 @@ local dictTempCache: {[number]: {[any]: any}} = {}
 		ptr += bytes
 	else
 		local keyArg = schema[2]
-		local decodeKey = decodeData[keyArg] or decodeData[keyArg[1]] 
+		local decodeKey = (decodeData[keyArg] or decodeData[keyArg[1]])
 		:: (buffer, number, SchemaArg, {Instance}?) -> (any, number)
 		for i = 1, len do
 			local key, b = decodeKey(buff, ptr, keyArg, inst)
@@ -1823,14 +1818,14 @@ end
 	for i = 1, len do
 		local keyType = readu8(buff, ptr)
 		ptr += 1
-		local decodeKey = decodeData[keyType] or decodeData[Enums.Nil] 
+		local decodeKey = (decodeData[keyType] or decodeData[Enums.Nil])
 		:: (buffer, number, SchemaArg, {Instance}?) -> (any, number)
 		local key, b = decodeKey(buff, ptr, schema, inst)
 		ptr += b
 
 		local valType = readu8(buff, ptr)
 		ptr += 1
-		local decodeVal = decodeData[valType] or decodeData[Enums.Nil] 
+		local decodeVal = (decodeData[valType] or decodeData[Enums.Nil])
 		:: (buffer, number, SchemaArg, {Instance}?) -> (any, number)
 		local val, b = decodeVal(buff, ptr, schema, inst)
 		ptr += b

@@ -2002,12 +2002,9 @@ decodeData = {
 	[Enums.FastStringDict] = decodeBulkStringArray,
 }
 
-local Serialize = {
+return {
 	encode = encodeData,
 	decode = decodeData,
 	enumItems = enumItems,
 	enumItemsByEnum = enumItemsByEnum,
 }
-
-
-return Serialize

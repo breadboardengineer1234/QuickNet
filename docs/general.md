@@ -12,8 +12,8 @@ Registers a network event. This method takes in a name and the types of the even
 local myEvent = QuickNet:register("MyEvent", data.NumberF32, data.String, data.Boolean)
 ```
 
-## ``:setEnumItems(enums: {EnumItem})``
-Attaches a table of EnumItems to enable the use of the ``data.EnumItem`` type. The provided table must be a flat array containing all EnumItems that will be used. This function should be called once on start up for both the server and clients.
+## ``:addEnumItems(enums: {EnumItem})``
+Adds the provided EnumItems to an internal ID map, enabling the use of the ``data.EnumItem`` type. Duplicate EnumItems are automatically skipped. This method should be used on startup.
 ```lua
 local enums = {
   Enum.EasingDirection.Out,
@@ -22,7 +22,7 @@ local enums = {
   Enum.HumanoidStateType.Running,
 }
 
-QuickNet:setEnumItems(enums)
+QuickNet:addEnumItems(enums)
 ```
 
 ## ``:setMaxPayloadSize(size: number)``

@@ -1,6 +1,6 @@
 --!optimize 2
 
---[QuickNet] v0.3.3
+--[QuickNet] v0.3.4
 --author: u5eful
 
 --services--
@@ -21,7 +21,7 @@ local RATE_LIMIT = {Max = 120, Time = 1} --adjust this
 local MAX_CALLS_PER_FRAME = 100000 --adjust this
 local INVOKE_TIMEOUT = 10
 local MAX_INVOKE_TIMEOUT = 60
-local MAX_PAYLOAD_SIZE = 200000000000 --adjust this (recommended 5-50K)
+local MAX_PAYLOAD_SIZE = 100000000 --adjust this (recommended 5-50K)
 local ERROR_MSGS = {
 	InvalidInternalArg1 = "invalid internal argument 1",
 	InvalidInternalArg2 = "invalid internal argument 2",
@@ -29,7 +29,7 @@ local ERROR_MSGS = {
 	Response1 = "Unreliable event does not support response",
 }
 local MAX_REQ_ID_RANGE = 65536
-local CLIENT_TEMP_BUFF_SIZE = 20000000 --adjust this (recommended 1-5M)
+local CLIENT_TEMP_BUFF_SIZE = 10000000 --adjust this (recommended 1-5M)
 local SERVER_TEMP_BUFF_SIZE = 2000000 --adjust this (recommended 500K-1M)
 local REMOTE_EVENT = 0
 local REMOTE_FUNCTION = 1
@@ -58,7 +58,6 @@ end
 --variables--
 local isServer = RunService:IsServer()
 local getSchema = Parser.getSchema
-local Net = {}
 local encodeData = Serialize.encode
 local decodeData = Serialize.decode
 local eventsInfo: {[number]: NetworkInfo<(), ()>} = {}
@@ -489,12 +488,6 @@ end
 			end
 			continue
 		end
-		
-		local waitThreads = info.WaitThreads
-		if #waitThreads > 0 then
-			info.WaitThreads = getTable()
-			resolveWaits(waitThreads, player, fastUnpack(args, numArgs))
-		end
 
 		if isRemoteFunction then
 			local object = info.Object
@@ -522,19 +515,6 @@ end
 		for _, callback in info.Callbacks do
 			local success, err = pcall(callback, player, fastUnpack(args, numArgs))
 			if not success then warnMsg(err, true) end
-		end
-		
-		if info.NumOnceCallbacks > 0 then
-			local onces = info.OnceCallbacks
-			info.NumOnceCallbacks = 0
-			info.OnceCallbacks = getTable()
-			
-			for conn, callback in onces do
-				disconnect(conn)
-				local thread = getThread()
-				coroutine.resume(thread, callback, thread, nil, nil, nil, player, fastUnpack(args, numArgs))
-			end
-			recycleTable(onces)
 		end
 		
 		for _, callback in info.AsyncCallbacks do
@@ -594,7 +574,7 @@ end
 		
 		local networkType = info.NetworkType
 		local isRemoteFunction = networkType == REMOTE_FUNCTION
-		local schema = networkType == REMOTE_FUNCTION and info.ResponseSchema or info.SendSchema
+		local schema = isRemoteFunction and info.ResponseSchema or info.SendSchema
 		local numArgs = #schema
 		
 		if isRemoteFunction then
@@ -605,12 +585,6 @@ end
 		local args, bytesRead = getArgs(buff, offset, schema, inst)
 		offset += bytesRead
 		
-		local waitThreads = info.WaitThreads
-		if #waitThreads > 0 then
-			info.WaitThreads = getTable()
-			resolveWaits(waitThreads, fastUnpack(args, numArgs))
-		end
-		
 		if isRemoteFunction then
 			resumeInvokeThread(reqId, true, fastUnpack(args, numArgs))
 			continue
@@ -619,19 +593,6 @@ end
 		for _, callback in info.Callbacks do
 			local success, err = pcall(callback, fastUnpack(args, numArgs))
 			if not success then warnMsg(err, true) end
-		end
-		
-		if info.NumOnceCallbacks > 0 then
-			local onces = info.OnceCallbacks
-			info.NumOnceCallbacks = 0
-			info.OnceCallbacks = getTable()
-
-			for conn, callback in onces do
-				disconnect(conn)
-				local thread = getThread()
-				coroutine.resume(thread, callback, thread, nil, nil, nil, fastUnpack(args, numArgs))
-			end
-			recycleTable(onces)
 		end
 
 		for _, callback in info.AsyncCallbacks do
@@ -703,19 +664,31 @@ local function createObjServer<A..., B...>(info: NetworkInfo<A..., B...>): Netwo
 	end
 	
 	function Object.OnServerEvent:Once(callback: (player: Player, A...) -> ()): QuickNetConnection
-		info.NumOnceCallbacks += 1
-		return getNetworkConnection(info.OnceCallbacks, callback)
+		local conn
+		conn = self:ConnectAsync(function(...)
+			disconnect(conn)
+			callback(...)
+		end)
+		return conn
 	end
 	
-	function Object.OnServerEvent:Wait()
-		return addWait(info.WaitThreads)
+	function Object.OnServerEvent:Wait(): A...
+		local cor = coroutine.running()
+		local conn
+		conn = self:Connect(function(...)
+			disconnect(conn)
+			if coroutine.status(cor) == "suspended" then
+				coroutine.resume(cor, ...)
+			end
+		end)
+		return coroutine.yield()
 	end
 	
 	@native function Object:FireClient(player: Player, ...: A...)
 		queueEvent(queue[player], schema, {...}, actionId, 0, networkType)
 	end
 	
-	function Object:FireClients(players: {Player}, ...: A...)
+	@native function Object:FireClients(players: {Player}, ...: A...)
 		for _, player in players do
 			queueEvent(queue[player], schema, {...}, actionId, 0, networkType)
 		end
@@ -813,12 +786,24 @@ local function createObjClient<A..., B...>(info: NetworkInfo<A..., B...>): Netwo
 	end
 	
 	function Object.OnClientEvent:Once(callback: (player: Player, A...) -> ()): QuickNetConnection
-		info.NumOnceCallbacks += 1
-		return getNetworkConnection(info.OnceCallbacks, callback)
+		local conn
+		conn = self:ConnectAsync(function(...)
+			disconnect(conn)
+			callback(...)
+		end)
+		return conn
 	end
-	
-	function Object.OnClientEvent:Wait()
-		return addWait(info.WaitThreads)
+
+	function Object.OnClientEvent:Wait(): A...
+		local cor = coroutine.running()
+		local conn
+		conn = self:Connect(function(...)
+			disconnect(conn)
+			if coroutine.status(cor) == "suspended" then
+				coroutine.resume(cor, ...)
+			end
+		end)
+		return coroutine.yield()
 	end
 
 	@native function Object:FireServer(...: A...)
@@ -880,19 +865,34 @@ local function start()
 end
 
 --public--
+local Net = {}
 Net.Data = DataTypes
 local enumItems = Serialize.enumItems
 local enumItemsByEnum = Serialize.enumItemsByEnum
+local enumId = 1
 
-function Net:setEnumItems(enums: {EnumItem})
-	local idx = 0
-	table.clear(enumItems)
-	table.clear(enumItemsByEnum)
-	
+function Net:addEnumItems(enums: {EnumItem})
+	local file = script.Serialize
 	for _, enum in enums do
-		idx += 1
-		enumItems[idx] = enum
-		enumItemsByEnum[enum] = idx
+		local type = tostring(enum.EnumType)
+		local name = enum.Name
+		local key = type.."."..name
+		local id
+		if isServer then
+			if file:GetAttribute(key) ~= nil then continue end
+			id = enumId
+			file:SetAttribute(key, id)
+			enumId += 1
+		else			
+			id = file:GetAttribute(key)
+			if id == nil then
+				file:GetAttributeChangedSignal(key):Wait()
+				id = file:GetAttribute(key) or 0
+			end
+		end
+		if enumItems[id] ~= nil or enumItemsByEnum[enum] ~= nil then continue end
+		enumItems[id] = enum
+		enumItemsByEnum[enum] = id
 	end
 end
 
@@ -925,9 +925,6 @@ function Net:register<A..., B...>(name: string, ...: A...): NetworkEvent<A...>
 	info.SendSchema = getSchema(...)
 	info.Callbacks = {}
 	info.AsyncCallbacks = {}
-	info.OnceCallbacks = {}
-	info.NumOnceCallbacks = 0
-	info.WaitThreads = {}
 	info.ResponseTimeout = INVOKE_TIMEOUT
 	local object = createNetworkObject(info)
 	info.Object = object

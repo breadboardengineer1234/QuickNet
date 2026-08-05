@@ -100,7 +100,8 @@ end
 --1: Type
 --2: Data
 --3: KeysMap
---4: FastPath
+--4: Template
+--5: FastPath
 local function dictStatic(data: {[string | number]: any}): {[string | number]: any}
 	local keys = {}
 	for key, val in data do

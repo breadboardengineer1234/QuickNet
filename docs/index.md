@@ -22,6 +22,10 @@ QuickNet's high performance does not come at the cost of accessibility. QuickNet
 - [Quickstart](quickstart.md)
 
 ## Updates
+### v0.3.4 (8/5/26)
+* setEnumItems -> addEnumItems: Instead of requiring a single call that provides every EnumItem used, EnumItems can now be attached individually in multiple different scripts on startup
+* Reworked logic for Once and Wait methods: more reliable behavior, more reused code and less logic in listener paths on both server and client
+
 ### v0.3.3 (6/25/26)
 * Fixed client side error swallowing in the calling thread for remote functions
 

@@ -68,7 +68,7 @@ A BrickColor object. If the intended color is one of the BrickColor presets, usa
 Buffer object, max length 65535.
 
 ## EnumItem (1 byte)
-Roblox EnumItem. To use this type, a list of the enums used must be supplied to QuickNet using the ```:setEnumItems``` method, which must be called on both client and server. The list can contain a maximum of 255 enums.
+Roblox EnumItem. To use this type, a list of the enums used must be supplied to QuickNet using the ```:addEnumItems``` method, which must be called on both client and server. The list can contain a maximum of 255 items.
 ```lua
 local enums = {
   Enum.EasingDirection.Out,
@@ -77,7 +77,7 @@ local enums = {
   Enum.HumanoidStateType.Running,
 }
 
-QuickNet:setEnumItems(enums)
+QuickNet:addEnumItems(enums)
 ```
 ## Instance
 Any Roblox Instance which exists on both client and server.

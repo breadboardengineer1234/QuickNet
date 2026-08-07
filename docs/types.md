@@ -289,7 +289,7 @@ local notDict2 = {[1] = "whatever", [2] = "somestring", [3] = "someotherstring"}
 QuickNet supports 3 types of dictionaries: static dictionaries, uniform dictionaries, and dynamic dictionaries. With some exceptions*, any QuickNet data type can be used as keys.
 
 ### Static Dictionary
-Use a static dictionary when the keys themselves and the types of the values are known at compile time. Static dictionaries are extremely powerful because they can reduce the network traffic by 2x. How is this possible? Because the keys are known at compile time QuickNet is able to build a sorted keys map on start up, allowing us to send only the values over the network without losing any information. Therefore, the byte size of a static dictionary is only the sum of the sizes of each value. Furthermore, because we send 2x less data we also perform 2x less buffer operations, which significantly reduces the CPU overhead. Note that static dictionaries currently only support strings and numbers as keys (subject to change). To define a static dictionary, declare a table with the keys set equal to the types of the corresponding values:
+Use a static dictionary when the keys themselves and the types of the values are known at compile time. Static dictionaries are extremely powerful because they can reduce the network traffic by 2x. How is this possible? Because the keys are known at compile time QuickNet is able to build a sorted keys map on start up, allowing us to send only the values over the network without losing any information. Therefore, the byte size of a static dictionary is only the sum of the sizes of each value. Furthermore, because we send 2x less data we also perform 2x less buffer operations, which significantly reduces the CPU overhead. Note that static dictionaries currently only support strings and numbers as keys. To define a static dictionary, declare a table with the keys set equal to the types of the corresponding values:
 ```lua
 QuickNet:register("StaticDictEvent", {name = data.String, health = data.NumberU32, speed = data.NumberU8, isAlive = data.Boolean})
 ```
@@ -343,7 +343,7 @@ QuickNet can boost performance for eligible arrays and dictionaries via fast pat
 * Boolean
 
 ## Limitations of Arrays and Dictionaries
-* *Static dictionaries can only have numbers or strings as keys (subject to change)
+* *Static dictionaries currently can only have numbers or strings as keys
 * Uniform and dynamic arrays have a maximum size of 65,535 elements
 * Uniform and dynamic dictionaries have a maximum of 65,535 key-value pairs
 * Cyclic tables not supported

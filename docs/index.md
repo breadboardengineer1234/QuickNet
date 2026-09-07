@@ -13,7 +13,7 @@ QuickNet uses clever optimization techniques under the hood to reduce allocation
 The buffer implementation makes it very difficult for exploiters to access the game's network events. For those who manage to bypass the buffer encoding, QuickNet performs additional checks on incoming data from clients to protect the server from invalid data and DDoS. For even further protection, the developer can set custom rate limits for each network event.
 
 ## Accessibility
-Despite QuickNet's high performance, it is very easy to use. No plugins, no Rojo, no installations; it works out of the box. Furthermore, the syntax is very similar to default RemoteEvents meaning very little learning is required. In fact, if a game is already using RemoteEvents QuickNet can be dropped in with minimal changes to the code base.
+Despite QuickNet's high performance, it is very easy to use. No plugins, installations, or setup required; it works out of the box. Furthermore, the syntax is very similar to default RemoteEvents meaning very little learning is required. In fact, if a game is already using RemoteEvents QuickNet can be dropped in with minimal changes to the code base.
 
 ## Getting Started
 

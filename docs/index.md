@@ -7,13 +7,13 @@ title: Home
 High performance networking solution for Roblox.
 
 ## Performance
-QuickNet uses clever optimization techniques under the hood to reduce allocations and minimize CPU usage. As a result, QuickNet is typically able to deliver **higher FPS** compared to default RemoteEvents. In addition, its buffer implementation allows data to be compressed when sent over the network, resulting in much **lower network bandwidth usage**.
+QuickNet uses clever optimization techniques under the hood to reduce allocations and minimize CPU usage. As a result, QuickNet is typically able to deliver **higher FPS** compared to default RemoteEvents. In addition, its buffer implementation allows data to be compressed when sent over the network, resulting in much **lower network traffic**.
 
-## Protection
-QuickNet performs sanity checks on incoming data from clients to protect the server from invalid data and DDoS. In addition, the developer can set custom rate limits for each network event to protect the server from spammers.
+## Security
+The buffer implementation makes it very difficult for exploiters to access the game's network events. For those who manage to bypass the buffer encoding, QuickNet performs additional checks on incoming data from clients to protect the server from invalid data and DDoS. For even further protection, the developer can set custom rate limits for each network event.
 
 ## Accessibility
-QuickNet's high performance does not come at the cost of accessibility. QuickNet requires no plugins or specific installations. Furthermore, QuickNet has very similar syntax to default Remotes, meaning it can be seamlessly integrated into existing games that already use RemoteEvents, and requires minimal learning by the user.
+Despite QuickNet's high performance, it is very easy to use. No plugins, no Rojo, no installations; it works out of the box. Furthermore, the syntax is very similar to default RemoteEvents meaning very little learning is required. In fact, if a game is already using RemoteEvents QuickNet can be dropped in with minimal changes to the code base.
 
 ## Getting Started
 
@@ -22,6 +22,13 @@ QuickNet's high performance does not come at the cost of accessibility. QuickNet
 - [Quickstart](quickstart.md)
 
 ## Updates
+### v0.3.5 (9/7/26)
+* Optimization for FireAllClients, FireClients, and FireAllExcept: instead of serializing the data for each individual player, QuickNet now serializes for only one player then copies the bytes directly for the remaining players. This should be a massive performance boost for games with large server size
+* Server side player buffer recycling removed: performance benefit was negligible and had a conflict with the new optimization
+* New Config file isolates the parameters intended to be adjusted by the user
+* setMaxPayloadSize method removed since the value is exposed in the new Config file
+* Small misc changes that don't affect performance or behavior
+
 ### v0.3.4 (8/5/26)
 * setEnumItems -> addEnumItems: Instead of requiring a single call that provides every EnumItem used, EnumItems can now be attached individually in multiple different scripts on startup
 * Reworked logic for Once and Wait methods: more reliable behavior, more reused code and less logic in listener paths on both server and client

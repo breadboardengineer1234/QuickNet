@@ -1,10 +1,11 @@
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
+local isServer = RunService:IsServer()
+
 local QuickNet = require(ReplicatedStorage.QuickNet)
 local Packet = require(ReplicatedStorage.Packet)
 local ByteNet = require(ReplicatedStorage.ByteNet)
 local Jolt = require(ReplicatedStorage.Jolt)
-local isServer = RunService:IsServer()
 local blinkFolder = ReplicatedStorage.Blink
 local Blink = isServer and require(blinkFolder.Server) or require(blinkFolder.Client)
 local Warp = isServer and require(ReplicatedStorage.Warp).Server() or require(ReplicatedStorage.Warp).Client()
@@ -149,7 +150,7 @@ local module = {
 	remoteFunction3 = NetRay.RemoteFunction,
 	
 	changingNumbers1 = QuickNet:register("ChangingNumbers", {data.NumberU8}):SetRateLimit(1000000000000, 30),
-	changingNumbers2 = Warp.Schema.array(Warp.Schema.u8),
+	changingNumbers2 = Warp.Schema.array(Warp.Schema.u8),	
 }
 
 Warp.useSchema("Booleans", module.bool7)

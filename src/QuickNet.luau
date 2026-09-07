@@ -1,27 +1,28 @@
 --!optimize 2
 
---[QuickNet] v0.3.4
+--[QuickNet] v0.3.5
 --author: u5eful
 
---services--
+--Services--
 local RunService = game:GetService("RunService")
 local Players = game:GetService("Players")
 
---dependencies--
+--Dependencies--
 local DataTypes = require(script.DataTypes)
 local Enums = require(script.Enums)
 local Serialize = require(script.Serialize)
 local Parser = require(script.Parser)
+local Config = require(script.Config)
 local Types = require(script.Types)
 
---config--
+--Config--
 local SOURCE = "[QuickNet]"
-local DEBUG_MODE = true --set to false for production
-local RATE_LIMIT = {Max = 120, Time = 1} --adjust this
-local MAX_CALLS_PER_FRAME = 100000 --adjust this
-local INVOKE_TIMEOUT = 10
-local MAX_INVOKE_TIMEOUT = 60
-local MAX_PAYLOAD_SIZE = 100000000 --adjust this (recommended 5-50K)
+local DEBUG_MODE = Config.DebugMode
+local RATE_LIMIT = Config.DefaultRateLimit
+local MAX_CALLS_PER_FRAME = Config.MaxCallsPerFrame
+local INVOKE_TIMEOUT = Config.DefaultResponseTimeout
+local MAX_INVOKE_TIMEOUT = 300
+local MAX_PAYLOAD_SIZE = Config.MaxPacketSize
 local ERROR_MSGS = {
 	InvalidInternalArg1 = "invalid internal argument 1",
 	InvalidInternalArg2 = "invalid internal argument 2",
@@ -29,14 +30,14 @@ local ERROR_MSGS = {
 	Response1 = "Unreliable event does not support response",
 }
 local MAX_REQ_ID_RANGE = 65536
-local CLIENT_TEMP_BUFF_SIZE = 10000000 --adjust this (recommended 1-5M)
-local SERVER_TEMP_BUFF_SIZE = 2000000 --adjust this (recommended 500K-1M)
+local CLIENT_TEMP_BUFF_SIZE = Config.ClientAllocationSize
+local SERVER_TEMP_BUFF_SIZE = Config.ServerAllocationSize
 local REMOTE_EVENT = 0
 local REMOTE_FUNCTION = 1
 local INVOKE_FAIL_ID = 0
 local TBL_POOL_SIZE = 100
 
---types--
+--Types--
 type Signal<T...> = Types.Signal<T...>
 export type NetworkEvent<A... = ()> = Types.NetworkEvent<A...>
 export type NetworkFunction<A... = (), B... = ()> = Types.NetworkFunction<A..., B...>
@@ -45,7 +46,7 @@ export type QuickNetConnection = Types.QuickNetConnection
 type SchemaArg = Types.SchemaArg
 type Queue = Types.Queue
 
---helpers--
+--Helpers--
 local function getClientQueue(): Queue
 	return {
 		QueueSize = 0,
@@ -55,7 +56,7 @@ local function getClientQueue(): Queue
 	}
 end
 
---variables--
+--Variables--
 local isServer = RunService:IsServer()
 local getSchema = Parser.getSchema
 local encodeData = Serialize.encode
@@ -68,7 +69,6 @@ local asyncThreadsPool: {thread} = {}
 local timeoutTasks: {[number]: thread} = {}
 local globalReqId: number = -1
 local globalEventId: number = 0
-local buffersPool: {buffer} = {}
 local buffersCache: {[number]: {buffer}} = {}
 local buffersCacheSize = 0
 local clientQueue: Queue?
@@ -81,10 +81,9 @@ local serverQueue: {[Player]: Queue} = {}
 local serverQueueUnr: {[Player]: Queue} = {}
 local internalRemote: RemoteEvent
 local internalUnreliable: UnreliableRemoteEvent
-local maxPayloadSize = MAX_PAYLOAD_SIZE
 local tablePool = table.create(TBL_POOL_SIZE)
 
---private--
+--Private--
 @native local function getTable(): {any}
 	local poolIdx = #tablePool
 	local tbl = tablePool[poolIdx]
@@ -134,19 +133,6 @@ local function getUnreliable(name: string): UnreliableRemoteEvent
 		unreliable = script:WaitForChild(name)
 	end
 	return unreliable
-end
-
-local function getBuffer(): buffer
-	local poolIdx = #buffersPool
-	local buff = buffersPool[poolIdx] or buffer.create(SERVER_TEMP_BUFF_SIZE)
-	buffersPool[poolIdx] = nil
-	return buff
-end
-
-local function recycleBuffer(buff: buffer)
-	local poolIdx = #buffersPool
-	if poolIdx >= 30 or not buff then return end 
-	buffersPool[#buffersPool + 1] = buff
 end
 
 @native local function cacheBuffer(buff: buffer, size: number)
@@ -246,8 +232,8 @@ end
 	end
 end
 
-@native local function queueEvent(queue: Queue, schema: {SchemaArg?}, args: {any}, actionId: number, reqId: number,
-	networkType: number)
+@native local function queueEvent(queue: Queue, schema: {SchemaArg}, args: {any}, actionId: number, reqId: number,
+	networkType: number): (number?, number?)
 	if not queue then return end
 	local offset = queue.ByteSize
 	local buff = queue.TempBuffer
@@ -256,17 +242,42 @@ end
 	if networkType == REMOTE_FUNCTION then
 		buffer.writeu16(buff, offset + bytes, reqId)
 		bytes += 2
-	end
+	end	
+	local instCount = 0
 	
 	if schema then
 		local inst = queue.Instances
+		local instStartSize = #inst
+		
 		for i, arg in schema do
 			local value = args[i]
-			local encode = encodeData[arg] or encodeData[arg[1]] 
+			local encode = (encodeData[arg] or encodeData[arg[1]])
 			:: ((buffer, number, SchemaArg, any, {Instance}?) -> number)?
 			bytes += encode(buff, offset + bytes, arg, value, inst)
 		end
+		instCount = #inst - instStartSize
 	end
+	queue.QueueSize += 1
+	queue.ByteSize += bytes
+	return bytes, instCount
+end
+
+@native local function queueEventSerialized(queue: Queue, sourceBuff: buffer, start: number, bytes: number,
+	sourceInst: {Instance}, instStart: number, instCount: number)
+	if not queue then return end
+	if instCount > 0 then
+		local inst = queue.Instances
+		local instSize = #inst
+		
+		for i = instStart + 1, instStart + instCount do
+			instSize += 1
+			inst[instSize] = sourceInst[i]
+		end
+	end
+		
+	local offset = queue.ByteSize
+	local buff = queue.TempBuffer
+	buffer.copy(buff, offset, sourceBuff, start, bytes)
 	queue.QueueSize += 1
 	queue.ByteSize += bytes
 end
@@ -288,7 +299,7 @@ local function getEventId(name: string): number?
 		id = internalRemote:GetAttribute(name)
 	end
 	if not id then
-		errorMsg("unable to get action id for "..name)
+		errorMsg("Unable to get action id for "..name)
 	end
 	return id
 end
@@ -329,7 +340,7 @@ end
 	local args = {}
 
 	for i, arg in schema do
-		local decode = decodeData[arg] or decodeData[arg[1]] 
+		local decode = (decodeData[arg] or decodeData[arg[1]])
 		:: (buffer, number, SchemaArg, {Instance}?) -> (any, number)
 		local value, bytes = decode(buff, ptr, arg, inst)
 		ptr += bytes
@@ -399,21 +410,6 @@ end
 	return thread
 end
 
-local function addWait(waitThreads: {thread}): thread
-	waitThreads[#waitThreads + 1] = coroutine.running()
-	return coroutine.yield()
-end
-
-@native local function resolveWaits(waitThreads: {thread}, ...)
-	for _, thread in waitThreads do
-		if coroutine.status(thread) ~= "suspended" then
-			continue
-		end
-		coroutine.resume(thread, ...)
-	end
-	recycleTable(waitThreads)
-end
-
 @native local function disconnect(self: QuickNetConnection)
 	if not self.Connected then return end
 	self.Connected = false
@@ -440,7 +436,7 @@ end
 		return
 	end
 
-	if buffer.len(buff) > maxPayloadSize then
+	if buffer.len(buff) > MAX_PAYLOAD_SIZE then
 		warnMsg(player.Name.." exceeded max packet size, dropping calls")
 		return
 	end
@@ -609,6 +605,35 @@ end
 	end
 end
 
+@native local function fireEventToPlayers(players: {Player}, queues: {[Player]: Queue}, schema: {SchemaArg}, 
+	actionId: number, networkType: number, exclude: Player?, ...)
+	local args = {...}
+	local start, bytes
+	local instStart, instCount
+	local sourceBuff, sourceInst
+	local serialized = false
+
+	for _, player in players do
+		if player == exclude then continue end
+		local playerQueue = queues[player]
+		if not playerQueue then continue end
+		if serialized then
+			queueEventSerialized(playerQueue, sourceBuff, start, bytes, sourceInst, instStart, instCount)
+		else
+			local inst = playerQueue.Instances
+			local byteSize = playerQueue.ByteSize
+			local numInst = #inst
+			bytes, instCount = queueEvent(playerQueue, schema, args, actionId, 0, networkType)
+			if not bytes or not instCount then continue end 
+			sourceBuff = playerQueue.TempBuffer
+			sourceInst = inst
+			start = byteSize
+			instStart = numInst
+			serialized = true
+		end
+	end
+end
+
 local function createObjServer<A..., B...>(info: NetworkInfo<A..., B...>): NetworkEvent<A...>
 	local Object = {}
 	Object.OnServerEvent = {}
@@ -689,22 +714,15 @@ local function createObjServer<A..., B...>(info: NetworkInfo<A..., B...>): Netwo
 	end
 	
 	@native function Object:FireClients(players: {Player}, ...: A...)
-		for _, player in players do
-			queueEvent(queue[player], schema, {...}, actionId, 0, networkType)
-		end
+		fireEventToPlayers(players, queue, schema, actionId, networkType, nil, ...)
 	end
-
-	@native function Object:FireAllClients(...: A...)
-		for _, player in Players:GetPlayers() do
-			queueEvent(queue[player], schema, {...}, actionId, 0, networkType)
-		end
+	
+	@native function Object:FireAllClients(...: A...)	
+		fireEventToPlayers(Players:GetPlayers(), queue, schema, actionId, networkType, nil, ...)
 	end
 
 	function Object:FireAllExcept(excludePlayer: Player, ...: A...)
-		for _, player in Players:GetPlayers() do
-			if player == excludePlayer then continue end 
-			queueEvent(queue[player], schema, {...}, actionId, 0, networkType)
-		end
+		fireEventToPlayers(Players:GetPlayers(), queue, schema, actionId, networkType, excludePlayer, ...)
 	end
 	return Object
 end
@@ -824,7 +842,7 @@ local function getServerQueue(): Queue
 	return {
 		QueueSize = 0,
 		ByteSize = 0,
-		TempBuffer = getBuffer(),
+		TempBuffer = buffer.create(SERVER_TEMP_BUFF_SIZE),
 		Instances = {},
 	}
 end
@@ -845,10 +863,6 @@ local function start()
 		Players.PlayerAdded:Connect(initPlayer)
 
 		Players.PlayerRemoving:Connect(function(player)
-			local queue = serverQueue[player]
-			local queueUnr = serverQueueUnr[player]
-			recycleBuffer(queue.TempBuffer)
-			recycleBuffer(queueUnr.TempBuffer)
 			serverQueue[player] = nil
 			serverQueueUnr[player] = nil
 			rateLimitInfo[player] = nil
@@ -864,40 +878,36 @@ local function start()
 	end
 end
 
---public--
-local Net = {}
-Net.Data = DataTypes
+--Public--
+local QuickNet = {}
+QuickNet.Data = DataTypes
 local enumItems = Serialize.enumItems
 local enumItemsByEnum = Serialize.enumItemsByEnum
 local enumId = 1
+local enumFile = script.Serialize
 
-function Net:addEnumItems(enums: {EnumItem})
-	local file = script.Serialize
+function QuickNet:addEnumItems(enums: {EnumItem})
 	for _, enum in enums do
 		local type = tostring(enum.EnumType)
 		local name = enum.Name
 		local key = type.."."..name
 		local id
 		if isServer then
-			if file:GetAttribute(key) ~= nil then continue end
+			if enumFile:GetAttribute(key) ~= nil then continue end
 			id = enumId
-			file:SetAttribute(key, id)
+			enumFile:SetAttribute(key, id)
 			enumId += 1
 		else			
-			id = file:GetAttribute(key)
+			id = enumFile:GetAttribute(key)
 			if id == nil then
-				file:GetAttributeChangedSignal(key):Wait()
-				id = file:GetAttribute(key) or 0
+				enumFile:GetAttributeChangedSignal(key):Wait()
+				id = enumFile:GetAttribute(key) or 0
 			end
 		end
 		if enumItems[id] ~= nil or enumItemsByEnum[enum] ~= nil then continue end
 		enumItems[id] = enum
 		enumItemsByEnum[enum] = id
 	end
-end
-
-function Net:setMaxPayloadSize(size: number)
-	maxPayloadSize = size
 end
 
 --[[
@@ -910,7 +920,7 @@ local myUnreliable = QuickNet:register("UnreliableName", data.CFrameF32):Unrelia
 
 local myFunction = QuickNet:register("FunctionName", data.Color3):Response(data.Boolean)
 ]]
-function Net:register<A..., B...>(name: string, ...: A...): NetworkEvent<A...>
+function QuickNet:register<A..., B...>(name: string, ...: A...): NetworkEvent<A...>
 	if namesRegistered[name] then
 		errorMsg(name.." already exists (names must be unique)")
 		return
@@ -919,7 +929,7 @@ function Net:register<A..., B...>(name: string, ...: A...): NetworkEvent<A...>
 	local info = {} :: NetworkInfo<A..., B...>
 	info.Name = name
 	local id = getEventId(name)
-	info.Id = id	
+	info.Id = id
 	info.NetworkType = REMOTE_EVENT
 	info.RateLimit = {Max = RATE_LIMIT.Max, Time = RATE_LIMIT.Time}
 	info.SendSchema = getSchema(...)
@@ -935,6 +945,6 @@ end
 --start module
 start()
 	
-export type QuickNet = typeof(Net)
+export type QuickNet = typeof(QuickNet)
 
-return Net
+return QuickNet

@@ -171,7 +171,6 @@ Defs.dict8.on(function(player, data)
 	
 end)
 
-
 local bools = table.create(500, true)
 Defs.remoteFunction1.OnServerInvoke = function(player, data)
 	return bools

@@ -25,12 +25,6 @@ local enums = {
 QuickNet:addEnumItems(enums)
 ```
 
-## ``:setMaxPayloadSize(size: number)``
-Sets the maximum byte size of any payload. Payloads exceeding this limit will immediately be dropped. This method accepts a size in bytes as input. The provided size must be an integer greater than 0.
-```lua
-QuickNet:setMaxPayloadSize(20000)
-```
-
 ## ``NetworkEvent``
 ### ``:Unreliable(): NetworkEvent``
 Call this method to define an unreliable event. Once an unreliable event has been defined it cannot be reverted. Unreliable events do not support call-response. Calling `:Response` on an unreliable event will throw an error, and vice versa.

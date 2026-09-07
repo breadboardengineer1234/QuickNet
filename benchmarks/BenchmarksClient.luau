@@ -1,8 +1,11 @@
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
+local HttpService = game:GetService("HttpService")
 local Stats = game:GetService("Stats")
+
 local Defs = require(script.Parent.Definitions)
 local Warp = require(ReplicatedStorage.Warp).Client()
+local Modes = require(script.Parent.Modes)
 
 local methods = {
 	QuickNet = "FireServer",
@@ -30,6 +33,7 @@ local events = {
 		Dict = Defs.dict1,
 		Instance = Defs.testInst,
 		ChangingNumbers = Defs.changingNumbers1,
+		CFrame = Defs.test2,
 	},
 
 	Packet = {
@@ -47,7 +51,7 @@ local events = {
 		Numbers = Defs.numbers3,
 		Dict = Defs.dict3,
 		
-		Instance = Defs.bool3,
+		CFrame = Defs.test3,
 	},
 
 	ByteNet = {
@@ -147,16 +151,37 @@ local function getDictData()
 	return dict
 end
 
+local cframeData = {}
+
+for i = 1, 100 do
+	cframeData[i] = CFrame.new(
+		math.random(),
+		math.random(),
+		math.random()
+	) * CFrame.Angles(
+		math.random(),
+		math.random(),
+		math.random()
+	)
+end
+
 local testData = {
 	Booleans = table.create(1000, true),
 	Entities = getEntitiesData(),
 	Strings = table.create(500, "Hello"),
 	Numbers = getNumbersData(2000),
 	Dict = getDictData(),
+	CFrame = cframeData,
 }
+
+--create StringValue
+local strVal = Instance.new("StringValue")
+strVal.Name = "BenchmarkResults"
+strVal.Parent = script.Parent
 
 --dont use deltaTime it doesnt show below 15 fps
 local function startTest(networkName: string, testName: string, firesPerFrame: number, duration: number?)
+	:(number?, number?)
 	duration = duration or 10	
 	local methodName = methods[networkName]
 	local event = events[networkName][testName]
@@ -169,7 +194,6 @@ local function startTest(networkName: string, testName: string, firesPerFrame: n
 	local isNetRay = networkName == "NetRay"
 	local dotCall = isByteNet or isBlink or isVNet or isNetRay
 
-	task.wait(3)
 	local numFrames = 0
 	local timePassed = 0
 	local timestamp
@@ -177,7 +201,6 @@ local function startTest(networkName: string, testName: string, firesPerFrame: n
 
 	local conn
 	conn = RunService.PostSimulation:Connect(function()
-		--data = getNumbersData(2000)
 		if dotCall then
 			for i = 1, firesPerFrame do
 				fire(data)
@@ -198,20 +221,24 @@ local function startTest(networkName: string, testName: string, firesPerFrame: n
 			timePassed += now - timestamp
 			kbps += Stats.DataSendKbps
 		end
-		timestamp = now
-
-		if timePassed >= duration then
-			local avgFps = numFrames/timePassed
-			--scale kbps by 60/fps, more fps will send packets more often
-			local avgKbps = (60 / avgFps) * kbps / numFrames
-			print(string.format("\n[%s] [%s] \nAverage FPS: %.3f \nAverage Kbps %.3f", 
-				networkName, testName, avgFps, avgKbps))
-			conn:Disconnect()
-		end
+			timestamp = now
 	end)
+	
+	task.wait(duration)
+	conn:Disconnect()
+	if timePassed == 0 then
+		timePassed = 1e-6
+	end
+	local avgFps = numFrames/timePassed
+	--scale kbps by 60/fps, more fps will send packets more often
+	local avgKbps = (60 / avgFps) * kbps / numFrames
+	print(string.format("\n[%s] [%s] \nAverage FPS: %.3f \nAverage Kbps %.3f", 
+			networkName, testName, avgFps, avgKbps))
+	return avgFps, avgKbps
 end
 
 local function startFunction(networkName: string, testName: string, firesPerFrame: number, duration: number?)
+	:(number?, number?)
 	duration = duration or 300	
 	local methodName = functionMethods[networkName]
 	local func = functions[networkName][testName]
@@ -222,12 +249,12 @@ local function startFunction(networkName: string, testName: string, firesPerFram
 	local isNetRay = networkName == "NetRay"
 	local dotCall = isByteNet or isBlink or isNetRay
 
-	task.wait(3)
 	local numFrames = 0
 	local timePassed = 0
 	local timestamp
 	local kbps = 0
-
+	
+	local cor = coroutine.running()	
 	local conn
 	conn = RunService.PostSimulation:Connect(function()
 		if dotCall then
@@ -247,21 +274,47 @@ local function startFunction(networkName: string, testName: string, firesPerFram
 			kbps += Stats.DataSendKbps
 		end
 		timestamp = now
-
-		if timePassed >= duration then
-			local avgFps = numFrames/timePassed
-			--scale kbps by 60/fps, more fps will send packets more often
-			local avgKbps = (60 / avgFps) * kbps / numFrames
-			print(string.format("\n[%s] [%s] \nAverage FPS: %.3f \nAverage Kbps %.3f", 
-				networkName, testName, avgFps, avgKbps))
-			conn:Disconnect()
-		end
 	end)
+	
+	task.wait(duration)
+	conn:Disconnect()
+	local avgFps = numFrames/timePassed
+	--scale kbps by 60/fps, more fps will send packets more often
+	local avgKbps = (60 / avgFps) * kbps / numFrames
+	print(string.format("\n[%s] [%s] \nAverage FPS: %.3f \nAverage Kbps %.3f", 
+		networkName, testName, avgFps, avgKbps))
+	return avgFps, avgKbps
+end
+
+local function roundToDecimal(num: number, decimal: number): number
+	local factor = 10^decimal
+	return math.round(num * factor)/factor
+end
+
+local testNames = {"Booleans", "Entities", "Strings", "Numbers", "Dict"}
+
+local function runAll(firesPerFrame: number, duration: number?)
+	local results = {}
+	local networkNames = Modes.Enabled
+	for _, network in networkNames do
+		print("====Benchmarking "..network.."====")
+		local result = {}
+		results[network] = result
+		for _, test in testNames do
+			task.wait(7)
+			print("Starting test: "..test)
+			local fps, kbps = startTest(network, test, firesPerFrame, duration)
+			result[test] = {fps = roundToDecimal(fps, 3), kbps = roundToDecimal(kbps, 3)}
+		end
+	end
+	local finalResult = HttpService:JSONEncode(results)
+	strVal.Value = finalResult
 end
 
 return {
 	start = startTest,
 	startFunction = startFunction,
+	runAll = runAll,
 }
 
 
